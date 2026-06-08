@@ -1,4 +1,5 @@
 "use client"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import {
@@ -80,6 +81,7 @@ function StatCard({ label, value, sub, icon: Icon, iconColor, iconBg, highlight,
 // ── 7-day bar chart ────────────────────────────────────────────────────────────
 function WeeklyBarChart({ data }: { data: Props["weeklyData"] }) {
   return (
+    <div style={{ minHeight: 208 }}>
     <ChartContainer config={barConfig} className="h-52 w-full">
       <BarChart data={data} barCategoryGap="30%">
         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
@@ -109,12 +111,14 @@ function WeeklyBarChart({ data }: { data: Props["weeklyData"] }) {
         />
       </BarChart>
     </ChartContainer>
+    </div>
   )
 }
 
 // ── Area trend chart (same data, different look) ───────────────────────────────
 function AreaTrendChart({ data }: { data: Props["weeklyData"] }) {
   return (
+    <div style={{ minHeight: 208 }}>
     <ChartContainer config={areaConfig} className="h-52 w-full">
       <AreaChart data={data}>
         <defs>
@@ -150,6 +154,7 @@ function AreaTrendChart({ data }: { data: Props["weeklyData"] }) {
         />
       </AreaChart>
     </ChartContainer>
+    </div>
   )
 }
 
@@ -333,7 +338,11 @@ function Section({ title, sub, icon: Icon, action, children, delay = 0 }: {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export function CommandCenter({ name, role, stats, weeklyData, topForms, recentActivity }: Props) {
-  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })
+  // Mount-gated so server and client render the same empty string first (no hydration mismatch)
+  const [today, setToday] = useState("")
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }))
+  }, [])
   const weekTotal = weeklyData.reduce((s, d) => s + d.count, 0)
 
   return (
