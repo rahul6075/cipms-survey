@@ -12,6 +12,7 @@ const FieldSchema = new Schema({
     show_state: { type: Boolean, default: true },
     show_ls:    { type: Boolean, default: true },
     show_vs:    { type: Boolean, default: true },
+    show_block: { type: Boolean, default: false },
   },
   maxFiles: Number,
   order: Number,

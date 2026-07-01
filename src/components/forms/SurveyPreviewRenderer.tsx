@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import type { FormField, SocialPlatform } from "@/types"
 import { STATES_UTS, LS_CONSTITUENCIES, getLSByState } from "@/data/constituencies"
 import { getVSByState, STATES_WITH_VS_DATA } from "@/data/vs_constituencies"
+import { getBlocksByDistrict, getDistrictForVS, STATES_WITH_BLOCK_DATA } from "@/data/blocks_data"
 
 interface Props {
   field: FormField
@@ -288,11 +289,11 @@ function ConstituencyPicker({
   preview,
 }: {
   field: FormField
-  value?: { state?: string; ls_no?: number; ls_name?: string; vs_no?: number; vs_name?: string }
+  value?: { state?: string; ls_no?: number; ls_name?: string; vs_no?: number; vs_name?: string; block?: string }
   onChange?: (v: any) => void
   preview?: boolean
 }) {
-  const cfg = field.constituency_config || { show_state: true, show_ls: true, show_vs: true }
+  const cfg = field.constituency_config || { show_state: true, show_ls: true, show_vs: true, show_block: false }
   const val = value || {}
 
   const [lsSearch, setLsSearch] = useState("")
@@ -301,6 +302,9 @@ function ConstituencyPicker({
   const [vsSearch, setVsSearch] = useState("")
   const [vsOpen, setVsOpen] = useState(false)
   const vsRef = useRef<HTMLDivElement>(null)
+  const [blockSearch, setBlockSearch] = useState("")
+  const [blockOpen, setBlockOpen] = useState(false)
+  const blockRef = useRef<HTMLDivElement>(null)
 
   const lsOptions = useMemo(() => {
     const all = val.state ? getLSByState(val.state) : LS_CONSTITUENCIES
@@ -310,6 +314,15 @@ function ConstituencyPicker({
   }, [val.state, lsSearch])
 
   const hasVsData = val.state ? STATES_WITH_VS_DATA.has(val.state) : false
+  const vsDistrict = val.vs_name ? getDistrictForVS(val.vs_name) : null
+  const hasBlockData = val.state ? STATES_WITH_BLOCK_DATA.has(val.state) : false
+  const blockOptions = useMemo(() => {
+    if (!hasBlockData || !vsDistrict) return []
+    const all = getBlocksByDistrict(val.state!, vsDistrict)
+    if (!blockSearch.trim()) return all
+    const q = blockSearch.toLowerCase()
+    return all.filter(b => b.toLowerCase().includes(q))
+  }, [hasBlockData, vsDistrict, val.state, blockSearch])
   const vsOptions = useMemo(() => {
     if (!val.state || !hasVsData) return []
     const all = getVSByState(val.state, val.ls_no)
@@ -341,6 +354,12 @@ function ConstituencyPicker({
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50">
             <span className="text-xs font-medium text-gray-400 w-24 shrink-0">Vidhan Sabha</span>
             <span className="text-xs text-gray-300">Search constituency...</span>
+          </div>
+        )}
+        {cfg.show_block && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50">
+            <span className="text-xs font-medium text-gray-400 w-24 shrink-0">Block</span>
+            <span className="text-xs text-gray-300">Select block...</span>
           </div>
         )}
       </div>
@@ -543,6 +562,88 @@ function ConstituencyPicker({
                 className={baseInput}
               />
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Block */}
+      {cfg.show_block && (
+        <div ref={blockRef} className="relative">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1 px-1">
+            Block
+          </p>
+          {hasBlockData && vsDistrict ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setBlockOpen(o => !o)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 border-gray-200 bg-gray-50 text-sm transition-all hover:border-orange-300 focus:outline-none focus:border-orange-400"
+              >
+                <span className={val.block ? "text-gray-800 font-medium" : "text-gray-400"}>
+                  {val.block || "Select block..."}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${blockOpen ? "rotate-180" : ""}`} />
+              </button>
+              <AnimatePresence>
+                {blockOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+                    style={{ maxHeight: 280 }}
+                  >
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                      <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <input
+                        autoFocus
+                        type="text"
+                        value={blockSearch}
+                        onChange={(e) => setBlockSearch(e.target.value)}
+                        placeholder="Search block..."
+                        className="flex-1 text-sm text-gray-800 bg-transparent border-none outline-none placeholder-gray-400"
+                      />
+                      {blockSearch && (
+                        <button type="button" onClick={() => setBlockSearch("")} className="text-gray-300 hover:text-gray-500">
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-y-auto" style={{ maxHeight: 220 }}>
+                      {blockOptions.length === 0 ? (
+                        <p className="text-xs text-gray-400 text-center py-4">No blocks found</p>
+                      ) : (
+                        blockOptions.map(b => (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => {
+                              set({ block: b })
+                              setBlockOpen(false)
+                              setBlockSearch("")
+                            }}
+                            className={`w-full px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors ${
+                              val.block === b ? "bg-orange-50 text-orange-700 font-medium" : "text-gray-700"
+                            }`}
+                          >
+                            {b}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
+          ) : (
+            <input
+              type="text"
+              value={val.block || ""}
+              onChange={(e) => set({ block: e.target.value })}
+              placeholder={!val.vs_name ? "Select Vidhan Sabha first" : "Enter block name..."}
+              className={baseInput}
+            />
           )}
         </div>
       )}

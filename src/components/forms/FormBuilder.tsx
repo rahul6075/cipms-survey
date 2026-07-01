@@ -34,7 +34,7 @@ export function FormBuilder({ initialData }: { initialData?: any }) {
       options: ["radio", "checkbox", "dropdown"].includes(type) ? ["Option 1", "Option 2"] : [],
       platforms: type === "social_media" ? ["instagram", "facebook", "whatsapp"] : undefined,
       constituency_config: type === "constituency"
-        ? { show_state: true, show_ls: true, show_vs: true }
+        ? { show_state: true, show_ls: true, show_vs: true, show_block: false }
         : undefined,
       order: fields.length,
     }

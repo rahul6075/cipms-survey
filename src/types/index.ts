@@ -22,6 +22,7 @@ export interface FormField {
     show_state: boolean
     show_ls: boolean
     show_vs: boolean
+    show_block: boolean
   }
   maxFiles?: number
   order: number

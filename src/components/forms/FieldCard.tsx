@@ -253,13 +253,14 @@ export function FieldCard({ field, index, total, isActive, onToggle, onUpdate, o
 
               {/* Constituency sub-field config */}
               {isConstituency && (() => {
-                const cfg = field.constituency_config || { show_state: true, show_ls: true, show_vs: true }
+                const cfg = field.constituency_config || { show_state: true, show_ls: true, show_vs: true, show_block: false }
                 const toggle = (key: keyof typeof cfg) =>
                   onUpdate({ constituency_config: { ...cfg, [key]: !cfg[key] } })
                 const FIELDS: { key: keyof typeof cfg; label: string; hint: string }[] = [
                   { key: "show_state", label: "State",         hint: "36 states & UTs" },
                   { key: "show_ls",    label: "Lok Sabha",     hint: "No. + name (1-543)" },
                   { key: "show_vs",    label: "Vidhan Sabha",  hint: "No. + name (state-wise)" },
+                  { key: "show_block", label: "Block",         hint: "Dev. block (UP, more coming)" },
                 ]
                 return (
                   <div className="space-y-2">
@@ -282,7 +283,7 @@ export function FieldCard({ field, index, total, isActive, onToggle, onUpdate, o
                         </button>
                       ))}
                     </div>
-                    {!cfg.show_state && !cfg.show_ls && !cfg.show_vs && (
+                    {!cfg.show_state && !cfg.show_ls && !cfg.show_vs && !cfg.show_block && (
                       <p className="text-xs text-amber-500">Enable at least one sub-field</p>
                     )}
                   </div>
