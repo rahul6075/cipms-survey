@@ -70,7 +70,6 @@ export const VS_CONSTITUENCIES: VSEntry[] = [
   { no: 56, name: "Ghaziabad",           state: "Uttar Pradesh", ls_no: 414 },
   { no: 57, name: "Modi Nagar",          state: "Uttar Pradesh", ls_no: 414 },
   { no: 53, name: "Loni",                state: "Uttar Pradesh", ls_no: 414 },
-  { no: 59, name: "Hapur",               state: "Uttar Pradesh", ls_no: 414 },
   { no: 52, name: "Baghpat",             state: "Uttar Pradesh", ls_no: 413 },
   { no: 72, name: "Lodha",               state: "Uttar Pradesh", ls_no: 413 },
   { no: 50, name: "Barnawa",             state: "Uttar Pradesh", ls_no: 413 },
@@ -312,7 +311,6 @@ export const VS_CONSTITUENCIES: VSEntry[] = [
   { no: 278, name: "Tanda",              state: "Uttar Pradesh", ls_no: 457 },
   { no: 273, name: "Milkipur",           state: "Uttar Pradesh", ls_no: 456 },
   { no: 274, name: "Bikapur",            state: "Uttar Pradesh", ls_no: 456 },
-  { no: 281, name: "Akbarpur",           state: "Uttar Pradesh", ls_no: 457 },
   { no: 277, name: "Katehri",            state: "Uttar Pradesh", ls_no: 457 },
   { no: 280, name: "Jalalpur",           state: "Uttar Pradesh", ls_no: 457 },
   // Shrawasti → LS 451
@@ -346,7 +344,6 @@ export const VS_CONSTITUENCIES: VSEntry[] = [
   { no: 321, name: "Pipraich",           state: "Uttar Pradesh", ls_no: 466 },
   { no: 322, name: "Gorakhpur Urban",    state: "Uttar Pradesh", ls_no: 466 },
   { no: 323, name: "Gorakhpur Rural",    state: "Uttar Pradesh", ls_no: 466 },
-  { no: 189, name: "Sadar",              state: "Uttar Pradesh", ls_no: 466 },
   { no: 325, name: "Khajani",            state: "Uttar Pradesh", ls_no: 466 },
   { no: 326, name: "Chauri-Chaura",      state: "Uttar Pradesh", ls_no: 466 },
   { no: 327, name: "Bansgaon",           state: "Uttar Pradesh", ls_no: 469 },
@@ -382,7 +379,6 @@ export const VS_CONSTITUENCIES: VSEntry[] = [
   // Lalganj → LS 460
   { no: 351, name: "Lalganj",            state: "Uttar Pradesh", ls_no: 470 },
   { no: 343, name: "Atraulia",           state: "Uttar Pradesh", ls_no: 470 },
-  { no: 344, name: "Gopalpur",           state: "Uttar Pradesh", ls_no: 470 },
   { no: 361, name: "Ballia",             state: "Uttar Pradesh", ls_no: 474 },
   // Ballia → LS 464
   { no: 360, name: "Reoti",              state: "Uttar Pradesh", ls_no: 474 },
@@ -394,7 +390,6 @@ export const VS_CONSTITUENCIES: VSEntry[] = [
   { no: 364, name: "Badlapur",           state: "Uttar Pradesh", ls_no: 475 },
   { no: 365, name: "Shahganj",           state: "Uttar Pradesh", ls_no: 475 },
   { no: 366, name: "Jaunpur",            state: "Uttar Pradesh", ls_no: 475 },
-  { no: 367, name: "Malhani",            state: "Uttar Pradesh", ls_no: 475 },
   { no: 370, name: "Mariyahu",           state: "Uttar Pradesh", ls_no: 475 },
   { no: 371, name: "Zafarabad",          state: "Uttar Pradesh", ls_no: 475 },
   // Ghazipur → LS 467
@@ -437,17 +432,14 @@ export const VS_CONSTITUENCIES: VSEntry[] = [
   { no: 293, name: "Utraula",            state: "Uttar Pradesh", ls_no: 459 },
   { no: 296, name: "Gonda",              state: "Uttar Pradesh", ls_no: 461 },
   { no: 301, name: "Gaura",              state: "Uttar Pradesh", ls_no: 459 },
-  { no: 290, name: "Shrawasti",          state: "Uttar Pradesh", ls_no: 460 },
   // Gonda → LS 474
   { no: 298, name: "Colonelganj",        state: "Uttar Pradesh", ls_no: 461 },
   { no: 299, name: "Tarabganj",          state: "Uttar Pradesh", ls_no: 461 },
-  { no: 296, name: "Gonda",              state: "Uttar Pradesh", ls_no: 461 },
   { no: 297, name: "Katra Bazar",        state: "Uttar Pradesh", ls_no: 461 },
   { no: 300, name: "Mankapur",           state: "Uttar Pradesh", ls_no: 461 },
   // Faizabad / Ayodhya → LS 475
   { no: 276, name: "Goshainganj",        state: "Uttar Pradesh", ls_no: 456 },
   { no: 275, name: "Ayodhya",            state: "Uttar Pradesh", ls_no: 456 },
-  { no: 274, name: "Bikapur",            state: "Uttar Pradesh", ls_no: 456 },
   { no: 271, name: "Rudauli",            state: "Uttar Pradesh", ls_no: 456 },
   // Bahraich → LS 476
   { no: 285, name: "Mahsi",              state: "Uttar Pradesh", ls_no: 458 },
@@ -458,31 +450,21 @@ export const VS_CONSTITUENCIES: VSEntry[] = [
   { no: 287, name: "Payagpur",           state: "Uttar Pradesh", ls_no: 458 },
   { no: 288, name: "Kaiserganj",         state: "Uttar Pradesh", ls_no: 477 },
   { no: 287, name: "Jarwal",             state: "Uttar Pradesh", ls_no: 477 },
-  { no: 292, name: "Gainsari",           state: "Uttar Pradesh", ls_no: 477 },
-  { no: 283, name: "Nanpara",            state: "Uttar Pradesh", ls_no: 477 },
   // Sitapur extra
-  { no: 153, name: "Misrikh",            state: "Uttar Pradesh", ls_no: 434 },
   // Machhlishahr → LS 466
   { no: 369, name: "Machhlishahr",       state: "Uttar Pradesh", ls_no: 476 },
   { no: 372, name: "Kerakat",            state: "Uttar Pradesh", ls_no: 476 },
-  { no: 163, name: "Safipur",            state: "Uttar Pradesh", ls_no: 476 },
   { no: 368, name: "Mungra Badshahpur",  state: "Uttar Pradesh", ls_no: 476 },
   { no: 397, name: "Majhwar",            state: "Uttar Pradesh", ls_no: 476 },
   // Salempur → LS 463
-  { no: 341, name: "Salempur",           state: "Uttar Pradesh", ls_no: 473 },
-  { no: 362, name: "Bansdih",            state: "Uttar Pradesh", ls_no: 473 },
   { no: 363, name: "Bairia",             state: "Uttar Pradesh", ls_no: 473 },
   // Bansgaon → LS 459
-  { no: 327, name: "Bansgaon",           state: "Uttar Pradesh", ls_no: 469 },
   { no: 328, name: "Chitbara Gaon",      state: "Uttar Pradesh", ls_no: 469 },
   { no: 320, name: "Caimpiyarganj",       state: "Uttar Pradesh", ls_no: 466 },
-  { no: 321, name: "Pipraich",           state: "Uttar Pradesh", ls_no: 469 },
   { no: 325, name: "Jungle Kaudia",      state: "Uttar Pradesh", ls_no: 466 },
   { no: 328, name: "Chillupar",          state: "Uttar Pradesh", ls_no: 468 },
   { no: 251, name: "Bharwari",           state: "Uttar Pradesh", ls_no: 452 },
-  { no: 259, name: "Meja",               state: "Uttar Pradesh", ls_no: 454 },
   { no: 265, name: "Koraon",             state: "Uttar Pradesh", ls_no: 453 },
-  { no: 370, name: "Mariyahu",           state: "Uttar Pradesh", ls_no: 475 },
 
   // ── Delhi (70) ───────────────────────────────────────────────────────────────
   { no: 1,  name: "Narela",              state: "Delhi", ls_no: 532 },
