@@ -26,6 +26,10 @@ export interface FormField {
   }
   maxFiles?: number
   order: number
+  /** Pradhan-intake autofill: when the form is loaded via an intake-created
+   *  assignment, this field is pre-filled from the Pradhan's profile and locked.
+   *  See src/app/api/survey/[token]/route.ts. */
+  prefill_from?: string
 }
 
 export interface Constituency {
