@@ -100,7 +100,7 @@ const mainNav: NavNode[] = [
     roles: ["super_admin", "admin"],
     children: [
       { href: "/dashboard/forms", label: "Forms", icon: FileText, roles: ["super_admin", "admin"] },
-      { href: "/dashboard/reports", label: "Reports", icon: BarChart3, roles: ["super_admin"] },
+      { href: "/dashboard/reports", label: "Reports", icon: BarChart3, roles: ["super_admin", "admin"] },
     ],
   },
 ]

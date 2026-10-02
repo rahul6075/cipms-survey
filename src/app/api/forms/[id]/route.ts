@@ -33,6 +33,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json(updated)
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session || session.user.role === "agent")
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  await connectDB()
+  const { id } = await params
+  const body = await req.json()
+
+  const existing = await Form.findById(id)
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (session.user.role !== "super_admin" && existing.created_by.toString() !== session.user.id)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const update: Record<string, unknown> = {}
+  if ("status" in body && ["draft", "active", "closed"].includes(body.status)) {
+    update.status = body.status
+  }
+  if ("access_type" in body && ["public", "private", "restricted"].includes(body.access_type)) {
+    update.access_type = body.access_type
+  }
+  if ("title" in body && typeof body.title === "string") update.title = body.title
+
+  const updated = await Form.findByIdAndUpdate(id, update, { new: true })
+  return NextResponse.json(updated)
+}
+
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session || session.user.role === "agent")
