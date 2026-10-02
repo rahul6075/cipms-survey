@@ -1,8 +1,8 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { connectDB } from "@/lib/mongodb"
-import User from "@/models/User"
-import { UsersView } from "@/components/dashboard/UsersView"
+import { connectDB } from "@/shared/lib/mongodb"
+import User from "@/modules/users/models/User"
+import { UsersView } from "@/modules/users/components/UsersView"
 
 export default async function UsersPage() {
   const session = await auth()

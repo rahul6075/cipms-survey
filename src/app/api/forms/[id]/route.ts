@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { connectDB } from "@/lib/mongodb"
-import Form from "@/models/Form"
+import { auth } from "@/shared/lib/auth"
+import { connectDB } from "@/shared/lib/mongodb"
+import Form from "@/modules/survey/models/Form"
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()

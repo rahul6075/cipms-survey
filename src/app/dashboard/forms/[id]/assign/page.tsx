@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { connectDB } from "@/lib/mongodb"
-import Form from "@/models/Form"
-import User from "@/models/User"
-import Assignment from "@/models/Assignment"
-import { AssignForm } from "@/components/forms/AssignForm"
+import { connectDB } from "@/shared/lib/mongodb"
+import Form from "@/modules/survey/models/Form"
+import User from "@/modules/users/models/User"
+import Assignment from "@/modules/survey/models/Assignment"
+import { AssignForm } from "@/modules/survey/components/AssignForm"
 
 export default async function AssignPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()

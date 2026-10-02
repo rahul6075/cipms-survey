@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { connectDB } from "@/lib/mongodb"
-import ResponseModel from "@/models/Response"
-import Form from "@/models/Form"
-import { ResponsesView } from "@/components/forms/ResponsesView"
+import { connectDB } from "@/shared/lib/mongodb"
+import ResponseModel from "@/modules/survey/models/Response"
+import Form from "@/modules/survey/models/Form"
+import { ResponsesView } from "@/modules/survey/components/ResponsesView"
 
 export default async function ResponsesPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()

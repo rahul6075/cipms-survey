@@ -1,8 +1,8 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { connectDB } from "@/lib/mongodb"
-import Form from "@/models/Form"
-import { FormBuilder } from "@/components/forms/FormBuilder"
+import { connectDB } from "@/shared/lib/mongodb"
+import Form from "@/modules/survey/models/Form"
+import { FormBuilder } from "@/modules/survey/components/FormBuilder"
 
 export default async function EditFormPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()

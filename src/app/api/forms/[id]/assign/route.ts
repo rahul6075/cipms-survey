@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { connectDB } from "@/lib/mongodb"
-import Assignment from "@/models/Assignment"
+import { auth } from "@/shared/lib/auth"
+import { connectDB } from "@/shared/lib/mongodb"
+import Assignment from "@/modules/survey/models/Assignment"
 import { randomUUID } from "crypto"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

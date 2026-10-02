@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { connectDB } from "@/lib/mongodb"
-import User from "@/models/User"
+import { auth } from "@/shared/lib/auth"
+import { connectDB } from "@/shared/lib/mongodb"
+import User from "@/modules/users/models/User"
 import bcrypt from "bcryptjs"
 
 export async function GET() {

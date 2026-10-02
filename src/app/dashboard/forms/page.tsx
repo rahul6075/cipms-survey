@@ -1,8 +1,8 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { connectDB } from "@/lib/mongodb"
-import Form from "@/models/Form"
-import { FormsList } from "@/components/forms/FormsList"
+import { connectDB } from "@/shared/lib/mongodb"
+import Form from "@/modules/survey/models/Form"
+import { FormsList } from "@/modules/survey/components/FormsList"
 
 export default async function FormsPage() {
   const session = await auth()

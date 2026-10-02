@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { connectDB } from "@/lib/mongodb"
-import Assignment from "@/models/Assignment"
-import Form from "@/models/Form"
-import Response from "@/models/Response"
+import { connectDB } from "@/shared/lib/mongodb"
+import Assignment from "@/modules/survey/models/Assignment"
+import Form from "@/modules/survey/models/Form"
+import Response from "@/modules/survey/models/Response"
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   await connectDB()

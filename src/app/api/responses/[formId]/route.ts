@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { connectDB } from "@/lib/mongodb"
-import Response from "@/models/Response"
+import { auth } from "@/shared/lib/auth"
+import { connectDB } from "@/shared/lib/mongodb"
+import Response from "@/modules/survey/models/Response"
 import mongoose from "mongoose"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ formId: string }> }) {

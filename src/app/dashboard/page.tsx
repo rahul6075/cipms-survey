@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { connectDB } from "@/lib/mongodb"
-import Form from "@/models/Form"
-import Response from "@/models/Response"
-import User from "@/models/User"
-import { CommandCenter } from "@/components/dashboard/CommandCenter"
+import { connectDB } from "@/shared/lib/mongodb"
+import Form from "@/modules/survey/models/Form"
+import Response from "@/modules/survey/models/Response"
+import User from "@/modules/users/models/User"
+import { CommandCenter } from "@/shared/components/layout/CommandCenter"
 
 export default async function DashboardPage() {
   const session = await auth()

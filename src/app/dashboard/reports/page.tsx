@@ -1,8 +1,8 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { connectDB } from "@/lib/mongodb"
-import Assignment from "@/models/Assignment"
-import { ReportsView } from "@/components/dashboard/ReportsView"
+import { connectDB } from "@/shared/lib/mongodb"
+import Assignment from "@/modules/survey/models/Assignment"
+import { ReportsView } from "@/modules/survey/dashboard/ReportsView"
 
 export default async function ReportsPage() {
   const session = await auth()

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { connectDB } from "@/lib/mongodb"
-import Constituency from "@/models/Constituency"
+import { connectDB } from "@/shared/lib/mongodb"
+import Constituency from "@/shared/models/Constituency"
 
 export async function GET() {
   await connectDB()

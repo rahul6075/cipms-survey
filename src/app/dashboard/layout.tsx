@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth"
+import { auth } from "@/shared/lib/auth"
 import { redirect } from "next/navigation"
-import { Sidebar } from "@/components/dashboard/Sidebar"
+import { Sidebar } from "@/shared/components/layout/Sidebar"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
