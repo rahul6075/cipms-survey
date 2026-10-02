@@ -4,7 +4,7 @@ import { connectDB } from "@/shared/lib/mongodb"
 import Form from "@/modules/survey/models/Form"
 import Response from "@/modules/survey/models/Response"
 import User from "@/modules/users/models/User"
-import { CommandCenter } from "@/shared/components/layout/CommandCenter"
+import { DashboardHome } from "@/shared/components/layout/DashboardHome"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -75,9 +75,9 @@ export default async function DashboardPage() {
   })
 
   return (
-    <CommandCenter
+    <DashboardHome
       name={session.user.name}
-      role={role}
+      role={role as "super_admin" | "admin" | "agent"}
       stats={{ totalForms, activeForms, totalResponses, totalAgents, todayCount }}
       weeklyData={weeklyData}
       topForms={(topFormsRaw as any[]).map(f => ({ title: f.title || "Untitled", count: f.count }))}
