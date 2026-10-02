@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -19,6 +20,7 @@ import {
   Shield,
   Trash2,
   UserCheck,
+  UserPlus,
   Users as UsersIcon,
   X,
 } from "lucide-react"
@@ -261,6 +263,15 @@ export function UsersViewNew({ sessionRole }: { sessionRole: Role }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex"
+            nativeButton={false}
+            render={<Link href="/dashboard/pradhan-intake" />}
+          >
+            <UserPlus className="h-3.5 w-3.5" /> Quick intake
+          </Button>
           <Button variant="outline" size="sm" className="hidden sm:inline-flex">
             <Download className="h-3.5 w-3.5" /> Export
           </Button>

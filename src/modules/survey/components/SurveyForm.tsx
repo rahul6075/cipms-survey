@@ -2,8 +2,9 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
-import { Vote, Loader2, CheckCircle, WifiOff, ShieldCheck } from "lucide-react"
+import { Vote, Loader2, CheckCircle, WifiOff, ShieldCheck, Lock } from "lucide-react"
 import { SurveyFieldRenderer } from "@/modules/survey/components/SurveyPreviewRenderer"
+import { PhotoLightbox } from "@/shared/components/PhotoLightbox"
 import type { IForm } from "@/shared/types"
 
 interface Props { token: string }
@@ -14,6 +15,12 @@ export function SurveyForm({ token }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [form, setForm] = useState<IForm | null>(null)
+  const [pradhan, setPradhan] = useState<{
+    name?: string; photo?: string; panchayat?: string;
+    block?: string; district?: string; state?: string;
+    phone?: string; whatsapp?: string
+  } | null>(null)
+  const [prefill, setPrefill] = useState<Record<string, { value: any; locked: boolean }>>({})
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [consentGiven, setConsentGiven] = useState(false)
   const [consentShake, setConsentShake] = useState(false)
@@ -41,19 +48,31 @@ export function SurveyForm({ token }: Props) {
       .then((data) => {
         if (data.error) { setError(data.error); setLoading(false); return }
         setForm(data.form)
+        setPradhan(data.pradhan || null)
+        setPrefill(data.prefill || {})
 
-        // Restore draft from localStorage
+        // Seed answers from prefill map (locked fields come pre-filled).
+        const seeded: Record<string, any> = {}
+        for (const [fid, p] of Object.entries((data.prefill || {}) as Record<string, { value: any }>)) {
+          if (p && p.value !== undefined) seeded[fid] = p.value
+        }
+
+        // Restore draft from localStorage (overrides prefill for non-locked fields)
         try {
           const saved = localStorage.getItem(DRAFT_KEY(token))
           if (saved) {
             const parsed = JSON.parse(saved)
             if (parsed.answers && Object.keys(parsed.answers).length > 0) {
-              setAnswers(parsed.answers)
+              // Locked fields always win over stale draft values.
+              for (const [k, v] of Object.entries(parsed.answers)) {
+                if (!(data.prefill || {})[k]?.locked) seeded[k] = v
+              }
               setDraftRestored(true)
             }
           }
         } catch { /* ignore */ }
 
+        setAnswers(seeded)
         setLoading(false)
       })
       .catch(() => { setError("Could not load form. Please check your connection."); setLoading(false) })
@@ -244,6 +263,39 @@ export function SurveyForm({ token }: Props) {
         )}
       </div>
 
+      {/* Pradhan branding card — shows when this link was created via intake */}
+      {pradhan && (
+        <div className="max-w-lg mx-auto px-4 pt-5">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 rounded-2xl bg-white border border-orange-100 shadow-sm px-4 py-3"
+          >
+            {pradhan.photo ? (
+              <PhotoLightbox src={pradhan.photo} alt={pradhan.name || "Gram Pradhan"} className="shrink-0 rounded-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={pradhan.photo}
+                  alt={pradhan.name || "Gram Pradhan"}
+                  className="h-12 w-12 rounded-full object-cover ring-2 ring-orange-200"
+                />
+              </PhotoLightbox>
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600 text-sm font-semibold">
+                {(pradhan.name || "P").slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">Gram Pradhan</p>
+              <p className="truncate text-sm font-semibold text-gray-900">{pradhan.name || "—"}</p>
+              <p className="truncate text-xs text-gray-500">
+                {[pradhan.panchayat, pradhan.block, pradhan.district, pradhan.state].filter(Boolean).join(" · ") || ""}
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Form fields */}
       <div className="max-w-lg mx-auto px-4 py-5 space-y-3 pb-40">
         {form?.description && (
@@ -289,11 +341,26 @@ export function SurveyForm({ token }: Props) {
                 </div>
 
                 <div className="px-4 pt-2.5 pb-4">
-                  <SurveyFieldRenderer
-                    field={field}
-                    value={answers[field.id]}
-                    onChange={(v) => setAnswer(field.id, v)}
-                  />
+                  {prefill[field.id]?.locked ? (
+                    <div className="relative">
+                      <div className="pointer-events-none opacity-80">
+                        <SurveyFieldRenderer
+                          field={field}
+                          value={answers[field.id]}
+                          onChange={() => { /* locked */ }}
+                        />
+                      </div>
+                      <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-600">
+                        <Lock className="h-2.5 w-2.5" /> Auto-filled from Pradhan profile
+                      </div>
+                    </div>
+                  ) : (
+                    <SurveyFieldRenderer
+                      field={field}
+                      value={answers[field.id]}
+                      onChange={(v) => setAnswer(field.id, v)}
+                    />
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -15,6 +15,7 @@ import {
   PlusCircle,
   Settings,
   Sparkles,
+  UserPlus,
   Users,
   Vote,
 } from "lucide-react"
@@ -105,6 +106,7 @@ const mainNav: NavNode[] = [
 ]
 
 const quickNav: NavLeaf[] = [
+  { href: "/dashboard/pradhan-intake", label: "Pradhan intake", icon: UserPlus, roles: ["super_admin", "admin"] },
   { href: "/dashboard/forms/new", label: "New Form", icon: PlusCircle, roles: ["super_admin", "admin"] },
 ]
 

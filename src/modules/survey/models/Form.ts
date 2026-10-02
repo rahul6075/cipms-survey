@@ -16,6 +16,11 @@ const FieldSchema = new Schema({
   },
   maxFiles: Number,
   order: Number,
+  // Pradhan-intake prefill: when this field is rendered via an assignment created
+  // from the intake flow, its value is pre-filled (and locked) from the assigned
+  // Pradhan's profile. One of: pradhan.name, pradhan.phone, pradhan.whatsapp,
+  // pradhan.email, pradhan.panchayat, pradhan.block, pradhan.district, pradhan.state.
+  prefill_from: String,
 }, { _id: false })
 
 const FormSchema = new Schema({
