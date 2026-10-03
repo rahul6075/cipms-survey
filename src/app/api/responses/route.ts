@@ -4,6 +4,8 @@ import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
 import Form from "@/modules/survey/models/Form"
 import Response from "@/modules/survey/models/Response"
+import "@/modules/users/models/User"
+import "@/modules/survey/models/Assignment"
 
 const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 200
