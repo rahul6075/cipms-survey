@@ -333,8 +333,11 @@ function DefaultFormHint({
 }) {
   const [busy, setBusy] = React.useState(false)
   const [value, setValue] = React.useState<string>(currentDefault || "")
-
-  React.useEffect(() => { setValue(currentDefault || "") }, [currentDefault])
+  const [syncedDefault, setSyncedDefault] = React.useState(currentDefault)
+  if (syncedDefault !== currentDefault) {
+    setSyncedDefault(currentDefault)
+    setValue(currentDefault || "")
+  }
 
   async function save() {
     setBusy(true)

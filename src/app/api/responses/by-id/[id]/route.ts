@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Types } from "mongoose"
 import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
 import Form from "@/modules/survey/models/Form"
@@ -11,6 +12,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   await connectDB()
   const { id } = await params
+  if (!Types.ObjectId.isValid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const r = await Response.findById(id)
     .populate("agent_id", "name email profile_data")
     .populate("assignment_id", "token pradhan_snapshot form_id")

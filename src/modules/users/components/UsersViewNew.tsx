@@ -22,6 +22,7 @@ import { Button } from "@/shared/components/ui/button"
 import { Progress } from "@/shared/components/ui/progress"
 import { DataTable, type DataTableBulkAction } from "@/shared/components/data-table/DataTable"
 import { encodeState } from "@/shared/components/data-table/urlState"
+import { useFetchJson } from "@/shared/hooks/use-fetch-json"
 import { DEFAULT_STATE, type DataTableColumn, type DataTableState } from "@/shared/components/data-table/types"
 import { UserDrawer } from "./UserDrawer"
 import { CreateUserDialog } from "./CreateUserDialog"
@@ -83,27 +84,12 @@ export function UsersViewNew({ sessionRole }: { sessionRole: Role }) {
     [],
   )
 
-  const [data, setData] = React.useState<ApiResponse | null>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [refreshKey, setRefreshKey] = React.useState(0)
   const [openUserId, setOpenUserId] = React.useState<string | null>(null)
   const [createOpen, setCreateOpen] = React.useState(false)
 
-  React.useEffect(() => {
-    let cancelled = false
-    setLoading(true); setError(null)
-    const dt = encodeState(state)
-    const url = `/api/users${dt ? `?dt=${encodeURIComponent(dt)}` : ""}`
-    fetch(url)
-      .then((r) => r.ok ? r.json() : Promise.reject(new Error("Failed to load users")))
-      .then((d) => { if (!cancelled) setData(d) })
-      .catch((e) => { if (!cancelled) setError((e as Error).message || "Error") })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [state, refreshKey])
-
-  const refresh = React.useCallback(() => setRefreshKey((k) => k + 1), [])
+  const { data, loading, error, reload: refresh } = useFetchJson<ApiResponse>(
+    `/api/users?dt=${encodeURIComponent(encodeState(state))}`,
+  )
   const openUser = (data?.rows || []).find((r) => r._id === openUserId) || null
   const counts = data?.counts || { total: 0, active: 0, agents: 0, incompleteProfiles: 0 }
 

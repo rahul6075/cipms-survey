@@ -35,6 +35,17 @@ function buildResponsesColumnMap(form: { fields?: Array<{ id?: string; type?: st
   return map
 }
 
+const TEXT_SEARCH_TYPES = new Set(["short_text", "long_text", "email", "phone", "radio", "dropdown", "checkbox"])
+const MAX_SEARCH_FIELDS = 20
+
+/** Answer paths the table's search box looks in: free-text and option fields only. */
+function searchableAnswerPaths(form: { fields?: Array<{ id?: string; type?: string }> }): string[] {
+  return (form.fields || [])
+    .filter((f) => f.id && f.type && TEXT_SEARCH_TYPES.has(f.type))
+    .slice(0, MAX_SEARCH_FIELDS)
+    .map((f) => `answers.${f.id}`)
+}
+
 const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 200
 
@@ -46,7 +57,8 @@ export async function GET(req: NextRequest) {
   await connectDB()
   const sp = req.nextUrl.searchParams
   const formId = sp.get("formId")
-  if (!formId) return NextResponse.json({ error: "formId required" }, { status: 400 })
+  if (!formId || !Types.ObjectId.isValid(formId))
+    return NextResponse.json({ error: "Valid formId required" }, { status: 400 })
 
   // Verify access to the form (and pull fields so dt= can build its column map).
   const form = await Form.findById(formId).select("created_by fields").lean<{
@@ -65,13 +77,15 @@ export async function GET(req: NextRequest) {
       const colMap = buildResponsesColumnMap(form)
       const { match, sort, skip, limit } = stateToMongo(state, colMap, {
         base: { form_id: new Types.ObjectId(formId) },
+        searchColumns: searchableAnswerPaths(form),
         maxPageSize: MAX_PAGE_SIZE,
         defaultSort: { submitted_at: -1 },
       })
       const [rows, total] = await Promise.all([
         Response.find(match)
-          .populate("agent_id", "name email profile_data")
-          .populate("assignment_id", "token pradhan_snapshot")
+          .select("submitted_at device answers agent_id")
+          // The table only shows the Pradhan's name, avatar and panchayat.
+          .populate("agent_id", "name profile_data.photo profile_data.panchayat")
           .sort(sort).skip(skip).limit(limit).lean(),
         Response.countDocuments(match),
       ])
@@ -81,9 +95,7 @@ export async function GET(req: NextRequest) {
           submitted_at: r.submitted_at,
           device: r.device,
           answers: r.answers || {},
-          location: r.location || null,
           agent: r.agent_id || null,
-          assignment: r.assignment_id || null,
         })),
         total,
         page: state.page,

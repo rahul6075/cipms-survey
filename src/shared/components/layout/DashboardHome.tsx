@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import {
   Activity,
   ArrowUpRight,
@@ -18,26 +19,10 @@ import {
   Users,
   Zap,
 } from "lucide-react"
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts"
 
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card } from "@/shared/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/shared/components/ui/chart"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { cn } from "@/shared/lib/utils"
 
@@ -63,9 +48,11 @@ interface Props {
   }[]
 }
 
-const chartConfig = {
-  count: { label: "Responses", color: "var(--chart-1)" },
-} satisfies ChartConfig
+// recharts is heavy; load it after the dashboard renders, client-side only.
+const WeeklySubmissionsChart = dynamic(() => import("./WeeklySubmissionsChart"), {
+  ssr: false,
+  loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-muted/40" />,
+})
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN").format(n)
@@ -193,7 +180,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
           Hi {name?.split(" ")[0] || "there"} <span className="text-xl">👋</span>
         </h1>
         <p className="text-sm text-muted-foreground">
-          Here's what's happening across your surveys today.
+          Here&apos;s what&apos;s happening across your surveys today.
         </p>
       </div>
 
@@ -391,27 +378,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
                 <BarChart2 className="h-3 w-3" /> {fmt(totalWeek)} total
               </Badge>
             </div>
-            <ChartContainer config={chartConfig} className="h-64 w-full">
-              <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="dashFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-count)" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="var(--color-count)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/60" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} className="text-xs" />
-                <YAxis tickLine={false} axisLine={false} width={32} className="text-xs" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  stroke="var(--color-count)"
-                  strokeWidth={2}
-                  fill="url(#dashFill)"
-                />
-              </AreaChart>
-            </ChartContainer>
+            <WeeklySubmissionsChart data={weeklyData} />
           </Card>
         </TabsContent>
 

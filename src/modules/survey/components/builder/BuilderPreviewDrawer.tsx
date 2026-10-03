@@ -12,6 +12,7 @@ import {
 } from "@/shared/components/ui/sheet"
 import type { FormField } from "@/shared/types"
 import { SurveyFieldRenderer } from "@/modules/survey/components/SurveyPreviewRenderer"
+import type { AnswerValue } from "@/shared/types"
 import type { BuilderForm } from "../FormBuilderView"
 
 type Device = "mobile" | "tablet" | "desktop"
@@ -32,15 +33,16 @@ export function BuilderPreviewDrawer({
   form: BuilderForm
 }) {
   const [device, setDevice] = React.useState<Device>("mobile")
-  const [answers, setAnswers] = React.useState<Record<string, unknown>>({})
+  const [answers, setAnswers] = React.useState<Record<string, AnswerValue>>({})
 
-  // Reset answers whenever the drawer re-opens so each preview session is clean.
-  React.useEffect(() => {
-    if (open) setAnswers({})
-  }, [open])
+  // Clear answers on close so each preview session starts clean.
+  const handleOpenChange = (o: boolean) => {
+    if (!o) setAnswers({})
+    onOpenChange(o)
+  }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
         className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-[720px] md:max-w-[800px] lg:max-w-[920px] xl:max-w-[min(60vw,1100px)]"
@@ -132,9 +134,9 @@ function PreviewField({
 }: {
   field: FormField
   index: number
-  value: unknown
+  value: AnswerValue
   locked: boolean
-  onChange: (v: unknown) => void
+  onChange: (v: AnswerValue) => void
 }) {
   // When locked (prefill_from set), inject a reasonable dummy value so villagers
   // see what their survey looks like with real data.

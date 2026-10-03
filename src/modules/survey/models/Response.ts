@@ -25,6 +25,7 @@ const ResponseSchema = new Schema({
 
 // Indexes for fast querying at scale
 ResponseSchema.index({ form_id: 1, submitted_at: -1 })   // responses per form, sorted by time
+ResponseSchema.index({ form_id: 1, agent_id: 1, submitted_at: -1 }) // per-form responses for one Pradhan
 ResponseSchema.index({ agent_id: 1, submitted_at: -1 })  // responses per Gram Pradhan
 ResponseSchema.index({ assignment_id: 1 })               // responses per assignment token
 ResponseSchema.index({ "constituency.lok_sabha_no": 1 }) // filter by constituency

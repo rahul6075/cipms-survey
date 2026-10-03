@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { Types } from "mongoose"
+import { Types, type PipelineStage } from "mongoose"
 import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
 import Form from "@/modules/survey/models/Form"
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   if (status && status !== "all") filter.status = status
   if (access && access !== "all") filter.access_type = access
   if (owner && owner !== "all" && session.user.role === "super_admin") {
-    try { filter.created_by = new Types.ObjectId(owner) } catch { /* ignore */ }
+    if (Types.ObjectId.isValid(owner)) filter.created_by = new Types.ObjectId(owner)
   }
   if (q) {
     const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
   // Legacy flat list for callers that still expect an array.
   if (legacy) {
-    const forms = await Form.find(filter).sort({ createdAt: -1 }).populate("created_by", "name email")
+    const forms = await Form.find(filter).sort({ createdAt: -1 }).populate("created_by", "name email").lean()
     return NextResponse.json(forms)
   }
 
@@ -70,17 +70,58 @@ export async function GET(req: NextRequest) {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
   sevenDaysAgo.setHours(0, 0, 0, 0)
 
-  // Two aggregations in parallel. Can't combine via $facet because MongoDB
-  // disallows $lookup inside $facet sub-pipelines.
-  let rowsAgg: Array<Record<string, unknown> & { responses_by_day?: Array<{ _id: string; n: number }> }> = []
-  let countsAgg: { total: Array<{ n: number }>; byStatus: Array<{ _id: string; n: number }> } = { total: [], byStatus: [] }
+  // Stats-derived sorts must run after the response lookup; plain field sorts run
+  // first so only one page of forms gets looked up.
+  const sortsOnStats = sortField === "responses_total" || sortField === "last_response_at"
+  const page_ = [{ $skip: (page - 1) * pageSize }, { $limit: pageSize }]
+  const statsStages: PipelineStage[] = [
+    {
+      // One scan per form: per-day buckets for the last 7 days plus a single
+      // bucket for everything older; totals are summed in JS.
+      $lookup: {
+        from: "responses",
+        let: { fid: "$_id" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$form_id", "$$fid"] } } },
+          {
+            $group: {
+              _id: {
+                $cond: [
+                  { $gte: ["$submitted_at", sevenDaysAgo] },
+                  { $dateToString: { format: "%Y-%m-%d", date: "$submitted_at" } },
+                  "older",
+                ],
+              },
+              n: { $sum: 1 },
+              last: { $max: "$submitted_at" },
+            },
+          },
+        ],
+        as: "buckets",
+      },
+    },
+    {
+      $set: {
+        responses_total: { $sum: "$buckets.n" },
+        last_response_at: { $max: "$buckets.last" },
+      },
+    },
+  ]
+
+  type Row = Record<string, unknown> & {
+    buckets?: Array<{ _id: string; n: number }>
+    responses_total?: number
+  }
+  let rowsAgg: Row[] = []
+  let countsAgg: { total: number; active: number; draft: number; closed: number } =
+    { total: 0, active: 0, draft: 0, closed: 0 }
   try {
     const [rowsRes, countsRes] = await Promise.all([
-      Form.aggregate([
+      Form.aggregate<Row>([
         { $match: filter },
-        { $sort: sort },
-        { $skip: (page - 1) * pageSize },
-        { $limit: pageSize },
+        ...(sortsOnStats
+          ? [...statsStages, { $sort: sort }, ...page_]
+          : [{ $sort: sort }, ...page_, ...statsStages]),
         {
           $lookup: {
             from: "users",
@@ -93,56 +134,10 @@ export async function GET(req: NextRequest) {
         { $unwind: { path: "$created_by", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: "responses",
-            let: { fid: "$_id" },
-            pipeline: [
-              { $match: { $expr: { $eq: ["$form_id", "$$fid"] } } },
-              {
-                $group: {
-                  _id: null,
-                  total: { $sum: 1 },
-                  last_response_at: { $max: "$submitted_at" },
-                },
-              },
-            ],
-            as: "response_totals",
-          },
-        },
-        {
-          $lookup: {
-            from: "responses",
-            let: { fid: "$_id" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ["$form_id", "$$fid"] },
-                      { $gte: ["$submitted_at", sevenDaysAgo] },
-                    ],
-                  },
-                },
-              },
-              {
-                $group: {
-                  _id: { $dateToString: { format: "%Y-%m-%d", date: "$submitted_at" } },
-                  n: { $sum: 1 },
-                },
-              },
-              { $sort: { _id: 1 } },
-            ],
-            as: "responses_by_day",
-          },
-        },
-        {
-          $lookup: {
             from: "assignments",
             let: { fid: "$_id" },
             pipeline: [
-              { $match: { $expr: { $and: [
-                { $eq: ["$form_id", "$$fid"] },
-                { $eq: ["$status", "active"] },
-              ]}}},
+              { $match: { $expr: { $and: [{ $eq: ["$form_id", "$$fid"] }, { $eq: ["$status", "active"] }] } } },
               { $count: "n" },
             ],
             as: "assignment_stats",
@@ -151,68 +146,55 @@ export async function GET(req: NextRequest) {
         {
           $project: {
             title: 1, description: 1, status: 1, access_type: 1,
-            fields: 1, require_consent: 1, constituency: 1,
+            require_consent: 1, constituency: 1,
             created_by: 1, createdAt: 1, updatedAt: 1,
-            responses_total: { $ifNull: [{ $arrayElemAt: ["$response_totals.total", 0] }, 0] },
-            last_response_at: { $ifNull: [{ $arrayElemAt: ["$response_totals.last_response_at", 0] }, null] },
-            responses_by_day: 1,
+            field_count: { $size: { $ifNull: ["$fields", []] } },
+            buckets: 1,
+            responses_total: 1,
+            last_response_at: 1,
             assigned_count: { $ifNull: [{ $arrayElemAt: ["$assignment_stats.n", 0] }, 0] },
           },
         },
       ]),
-      Form.aggregate([
+      Form.aggregate<typeof countsAgg>([
         { $match: filter },
         {
-          $facet: {
-            total: [{ $count: "n" }],
-            byStatus: [{ $group: { _id: "$status", n: { $sum: 1 } } }],
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            active: { $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] } },
+            draft: { $sum: { $cond: [{ $eq: ["$status", "draft"] }, 1, 0] } },
+            closed: { $sum: { $cond: [{ $eq: ["$status", "closed"] }, 1, 0] } },
           },
         },
+        { $project: { _id: 0 } },
       ]),
     ])
     rowsAgg = rowsRes
     countsAgg = countsRes[0] || countsAgg
   } catch (e) {
-    console.error("[/api/forms] aggregation failed:", (e as Error).message, (e as Error).stack)
-    return NextResponse.json({ error: "aggregation_failed", detail: (e as Error).message }, { status: 500 })
+    console.error("[/api/forms] aggregation failed:", (e as Error).message)
+    return NextResponse.json({ error: "aggregation_failed" }, { status: 500 })
   }
 
-  const rawRows = rowsAgg
-
   // Fill the 7-day sparkline with zeros so each row has a consistent array length.
-  const rows = rawRows.map((r) => {
+  const rows = rowsAgg.map(({ buckets, ...r }) => {
+    const map = new Map((buckets || []).map((d) => [d._id, d.n]))
     const days: number[] = []
-    const map = new Map((r.responses_by_day || []).map((d) => [d._id, d.n]))
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       days.push(map.get(d.toISOString().slice(0, 10)) || 0)
     }
     return {
-      _id: r._id,
-      title: r.title,
-      description: r.description,
-      status: r.status,
-      access_type: r.access_type,
-      fields: Array.isArray(r.fields) ? r.fields : [],
-      field_count: Array.isArray(r.fields) ? r.fields.length : 0,
-      require_consent: r.require_consent,
-      constituency: r.constituency,
-      created_by: r.created_by,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      ...r,
       responses_total: r.responses_total || 0,
-      last_response_at: r.last_response_at,
+      last_response_at: r.last_response_at ?? null,
       responses_last_7d: days,
-      assigned_count: r.assigned_count || 0,
     }
   })
 
-  const total = countsAgg.total[0]?.n || 0
-  const byStatus = countsAgg.byStatus.reduce<Record<string, number>>(
-    (acc, row) => { acc[row._id] = row.n; return acc },
-    {}
-  )
+  const total = countsAgg.total
 
   return NextResponse.json({
     rows,
@@ -220,12 +202,7 @@ export async function GET(req: NextRequest) {
     page,
     pageSize,
     pageCount: Math.max(1, Math.ceil(total / pageSize)),
-    counts: {
-      total,
-      active: byStatus.active || 0,
-      draft: byStatus.draft || 0,
-      closed: byStatus.closed || 0,
-    },
+    counts: countsAgg,
   })
 }
 

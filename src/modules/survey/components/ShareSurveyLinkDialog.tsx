@@ -72,17 +72,22 @@ export function SurveyShareBlock({
   compact?: boolean
   showPradhanCard?: boolean
 }) {
-  const [qr, setQr] = React.useState<string>("")
   const shareUrl = buildSurveyUrl(token)
   const localhost = isLocalhost(shareUrl)
   const qrSize = compact ? 180 : 240
 
+  // The QR is tagged with what it encodes, so a stale image never shows for a new link.
+  const qrKey = token ? `${shareUrl}|${qrSize}` : null
+  const [generated, setGenerated] = React.useState<{ key: string; dataUrl: string } | null>(null)
+  const qr = generated && generated.key === qrKey ? generated.dataUrl : ""
   React.useEffect(() => {
-    if (!token) { setQr(""); return }
+    if (!qrKey) return
+    let cancelled = false
     QRCode.toDataURL(shareUrl, { margin: 1, width: qrSize + 40 })
-      .then(setQr)
-      .catch(() => setQr(""))
-  }, [token, shareUrl, qrSize])
+      .then((dataUrl) => { if (!cancelled) setGenerated({ key: qrKey, dataUrl }) })
+      .catch(() => { /* leave the placeholder */ })
+    return () => { cancelled = true }
+  }, [qrKey, shareUrl, qrSize])
 
   const copyLink = React.useCallback(async () => {
     try {

@@ -45,10 +45,13 @@ export function FiltersPresetsDialog<Row>({
   const [showNameInput, setShowNameInput] = React.useState(false)
   const [newName, setNewName] = React.useState("")
 
-  // Refresh presets whenever the dialog opens so edits made in another tab show up.
-  React.useEffect(() => {
-    if (open) setPresets(listPresets(scope))
-  }, [open, scope])
+  // Re-read presets each time the dialog opens so edits made in another tab show up.
+  const openedFor = open ? scope : null
+  const [loadedFor, setLoadedFor] = React.useState<string | null>(null)
+  if (loadedFor !== openedFor) {
+    setLoadedFor(openedFor)
+    if (openedFor) setPresets(listPresets(openedFor))
+  }
 
   // Clear the "loaded" marker whenever the current state diverges from it.
   const loadedPreset = presets.find((p) => p.id === loadedId) || null

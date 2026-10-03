@@ -32,7 +32,8 @@ UserSchema.pre("save", function (next) {
 })
 
 UserSchema.index({ role: 1, is_active: 1 })
-UserSchema.index({ created_by: 1, role: 1 })
+UserSchema.index({ created_by: 1, role: 1, createdAt: -1 })      // admin's Pradhan list, newest first
+UserSchema.index({ role: 1, "profile_data.phone": 1 })          // intake dedupe by phone
 UserSchema.index({ role: 1, status: 1, createdAt: -1 })
 UserSchema.index({ name: "text", email: "text" })
 

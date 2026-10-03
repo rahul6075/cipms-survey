@@ -10,26 +10,17 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
-  Copy,
   Eye,
-  GripVertical,
   Loader2,
-  Plus,
   Save,
-  Settings,
-  Trash2,
 } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
-import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu"
 import { Input } from "@/shared/components/ui/input"
@@ -108,6 +99,8 @@ export function FormBuilderView({ initialData }: { initialData?: Partial<Builder
       // Only prompt if the draft differs from the initial payload.
       const same = JSON.stringify(parsed.form.fields) === JSON.stringify(form.fields) &&
                    parsed.form.title === form.title
+      // localStorage only exists after hydration, so this can't be initial state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!same) setDraftFound({ savedAt: parsed.savedAt })
     } catch { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -474,13 +467,13 @@ function StatusMenu({ value, onChange }: { value: string; onChange: (v: BuilderF
 }
 
 function AutosaveLabel({ at }: { at: Date | null }) {
-  const [, tick] = React.useReducer((x: number) => x + 1, 0)
+  const [now, setNow] = React.useState(() => Date.now())
   React.useEffect(() => {
-    const t = setInterval(tick, 30_000)
+    const t = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(t)
   }, [])
   if (!at) return <span className="inline-flex items-center gap-1 opacity-60"><Loader2 className="h-2.5 w-2.5 animate-spin" /> saving locally…</span>
-  const secs = Math.round((Date.now() - at.getTime()) / 1000)
+  const secs = Math.max(0, Math.round((now - at.getTime()) / 1000))
   const label = secs < 5 ? "just now" : secs < 60 ? `${secs}s ago` : `${Math.round(secs / 60)}m ago`
   return (
     <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">

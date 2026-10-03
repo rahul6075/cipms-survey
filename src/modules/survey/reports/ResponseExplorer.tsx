@@ -13,6 +13,7 @@ import {
   type DataTableState,
   type FilterItem,
 } from "@/shared/components/data-table/types"
+import { useFetchJson } from "@/shared/hooks/use-fetch-json"
 import { ResponseDrawer } from "./ResponseDrawer"
 import type { FormField } from "./ReportsWorkbench"
 
@@ -69,18 +70,20 @@ export function ResponseExplorer({
   to: string
   filters: Record<string, string>
 }) {
-  const [state, setStateRaw] = React.useState<DataTableState>(() => ({
+  const [rawState, setRawState] = React.useState<DataTableState>(() => ({
     ...DEFAULT_STATE,
     pageSize: 25,
     sort: { column: "__submitted_at", dir: "desc" },
   }))
-  const setState = React.useCallback(
-    (patch: Partial<DataTableState>) => setStateRaw((prev) => ({ ...prev, ...patch })),
-    [],
-  )
-
-  // Reset to page 1 whenever workbench constraints change.
-  React.useEffect(() => { setStateRaw((p) => ({ ...p, page: 1 })) }, [from, to, filters, formId])
+  // The page only applies to the workbench scope it was chosen in; a new
+  // date range / cross-filter starts back at page 1.
+  const scopeKey = JSON.stringify([formId, from, to, filters])
+  const [pageScope, setPageScope] = React.useState(scopeKey)
+  const state = pageScope === scopeKey ? rawState : { ...rawState, page: 1 }
+  const setState = (patch: Partial<DataTableState>) => {
+    setPageScope(scopeKey)
+    setRawState({ ...state, ...patch })
+  }
 
   // Columns: 4 system + one per form field.
   const columns = React.useMemo<DataTableColumn<ResponseRow>[]>(() => {
@@ -158,36 +161,24 @@ export function ResponseExplorer({
     return [...systemCols, ...fieldCols]
   }, [fields])
 
-  // Data fetching — single dt= param holds everything.
-  const [rows, setRows] = React.useState<ResponseRow[]>([])
-  const [total, setTotal] = React.useState(0)
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
   const [openId, setOpenId] = React.useState<string | null>(null)
 
-  React.useEffect(() => {
-    let cancelled = false
-    setLoading(true); setError(null)
-    // Combine workbench constraints (ext rows) with user state only for the
-    // wire request — never mutates visible state, so user filters stay removable.
-    const ext = buildExternalRows(from, to, filters, fields)
-    const effective: DataTableState = { ...state, filters: [...ext, ...state.filters] }
-    const dt = encodeState(effective)
-    const url = `/api/responses?formId=${encodeURIComponent(formId)}${dt ? `&dt=${encodeURIComponent(dt)}` : ""}`
-    fetch(url)
-      .then((r) => r.ok ? r.json() : Promise.reject(new Error("Failed to load responses")))
-      .then((d) => { if (cancelled) return; setRows(d.rows || []); setTotal(d.total || 0) })
-      .catch((e) => { if (!cancelled) setError((e as Error).message); setRows([]) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [formId, state, from, to, filters, fields])
+  // Workbench constraints are merged into the wire request only, never into
+  // visible state, so user filters stay removable.
+  const effective: DataTableState = {
+    ...state,
+    filters: [...buildExternalRows(from, to, filters, fields), ...state.filters],
+  }
+  const { data, loading, error } = useFetchJson<{ rows: ResponseRow[]; total: number }>(
+    `/api/responses?formId=${encodeURIComponent(formId)}&dt=${encodeURIComponent(encodeState(effective))}`,
+  )
 
   return (
     <>
       <DataTable
         columns={columns}
-        rows={rows}
-        total={total}
+        rows={data?.rows ?? []}
+        total={data?.total ?? 0}
         state={state}
         onStateChange={setState}
         loading={loading}

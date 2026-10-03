@@ -41,11 +41,12 @@ export function CreateUserDialog({
   const [role, setRole] = React.useState<Role>("agent")
   const [busy, setBusy] = React.useState(false)
 
-  React.useEffect(() => {
-    if (!open) {
-      setName(""); setEmail(""); setPassword(""); setRole("agent")
-    }
-  }, [open])
+  // Clear the form whenever the dialog closes, however it was closed.
+  const [wasOpen, setWasOpen] = React.useState(open)
+  if (wasOpen !== open) {
+    setWasOpen(open)
+    if (!open) { setName(""); setEmail(""); setPassword(""); setRole("agent") }
+  }
 
   const roleOptions = sessionRole === "super_admin"
     ? [

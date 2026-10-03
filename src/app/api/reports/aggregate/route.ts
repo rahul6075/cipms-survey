@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { Types } from "mongoose"
+import type { PipelineStage } from "mongoose"
 import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
-import Form from "@/modules/survey/models/Form"
 import Response from "@/modules/survey/models/Response"
+import { buildScopeMatch, loadReportForm } from "@/modules/survey/reports/reportScope"
 
 type Body = {
   formId: string
@@ -33,40 +33,10 @@ export async function POST(req: NextRequest) {
 
   if (!body.formId) return NextResponse.json({ error: "formId required" }, { status: 400 })
 
-  // Load the form so we know how to interpret each answer field.
-  const form = await Form.findById(body.formId).lean<{
-    _id: unknown
-    title: string
-    status: string
-    created_by: unknown
-    fields: Array<{ id: string; label: string; type: string; options?: string[] }>
-  }>()
-  if (!form) return NextResponse.json({ error: "Form not found" }, { status: 404 })
-
-  // Access control: admins can only run reports on their own forms.
-  if (session.user.role !== "super_admin" && String(form.created_by) !== session.user.id)
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-
-  // Build the base $match for responses in this form + optional date range + filters.
-  const match: Record<string, unknown> = { form_id: new Types.ObjectId(body.formId) }
-  if (body.from || body.to) {
-    const dateFilter: Record<string, Date> = {}
-    if (body.from) dateFilter.$gte = new Date(body.from)
-    if (body.to) dateFilter.$lte = new Date(body.to)
-    match.submitted_at = dateFilter
-  }
-
-  // Field filters: answers.<id> = value. (Mongo Map stores as answers.<id>.)
-  const filterEntries = Object.entries(body.filters || {}).filter(([, v]) => v !== null && v !== "")
-  for (const [key, value] of filterEntries) {
-    // Hard-coded system filters.
-    if (key === "__device") { match.device = value; continue }
-    if (key === "__agent") {
-      try { match.agent_id = new Types.ObjectId(String(value)) } catch { /* ignore */ }
-      continue
-    }
-    match[`answers.${key}`] = value
-  }
+  const loaded = await loadReportForm(session, body.formId)
+  if ("error" in loaded) return NextResponse.json({ error: loaded.error }, { status: loaded.status })
+  const { form } = loaded
+  const match = buildScopeMatch(form, body)
 
   // Pre-compute the span for timeseries bucketing (day vs hour).
   const now = new Date()
@@ -181,6 +151,7 @@ export async function POST(req: NextRequest) {
         { $project: { v: `$answers.${key}` } },
         { $project: { v: { $cond: [{ $isArray: "$v" }, "$v", ["$v"]] } } },
         { $unwind: "$v" },
+        { $set: { v: { $cond: [{ $eq: [{ $type: "$v" }, "string"] }, { $trim: { input: "$v" } }, "$v"] } } },
         { $group: { _id: "$v", n: { $sum: 1 } } },
         { $sort: { n: -1 } },
         { $limit: 30 },
@@ -203,11 +174,10 @@ export async function POST(req: NextRequest) {
             min: { $min: "$v" },
             max: { $max: "$v" },
             avg: { $avg: "$v" },
-            values: { $push: "$v" },
+            // Capped while grouping so large forms don't buffer every value.
+            values: { $firstN: { input: "$v", n: 500 } },
           },
         },
-        // Keep the raw values array small — client will bucket.
-        { $project: { n: 1, min: 1, max: 1, avg: 1, values: { $slice: ["$values", 500] } } },
       ]
     }
     // Other field types (text, phone, email, photo, date, time, location,
@@ -215,27 +185,29 @@ export async function POST(req: NextRequest) {
     // is still exposed via the Raw responses table and the response drawer.
   }
 
+  // Only carry the answers the facets read, so $facet doesn't copy whole documents.
+  const projection: Record<string, 1> = { submitted_at: 1, device: 1, agent_id: 1 }
+  for (const f of form.fields || []) {
+    if (f.id && (CATEGORICAL.has(f.type) || NUMERIC.has(f.type))) projection[`answers.${f.id}`] = 1
+  }
+
   let agg: Record<string, unknown> | undefined
+  let prevTotal = 0
   try {
-    const [res] = await Response.aggregate([
-      { $match: match },
-      /* The $facet schema can't model dynamic per-field branches cleanly;
-         Mongo evaluates them fine at runtime. */
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { $facet: facets as any },
+    const [[res], prev] = await Promise.all([
+      Response.aggregate<Record<string, unknown>>([
+        { $match: match },
+        { $project: projection },
+        { $facet: facets as Record<string, PipelineStage.FacetPipelineStage[]> },
+      ]).option({ allowDiskUse: true }),
+      Response.countDocuments({ ...match, submitted_at: { $gte: prevFrom, $lte: prevTo } }),
     ])
     agg = res
+    prevTotal = prev
   } catch (e) {
     console.error("[/api/reports/aggregate] failed:", (e as Error).message)
     return NextResponse.json({ error: "aggregation_failed", detail: (e as Error).message }, { status: 500 })
   }
-
-  // Previous period overview for KPI deltas.
-  let prevTotal = 0
-  try {
-    const prev = await Response.countDocuments({ ...match, submitted_at: { $gte: prevFrom, $lte: prevTo } })
-    prevTotal = prev
-  } catch { /* ignore */ }
 
   // Shape the output into something the client can render without translating.
   const ov = (agg?.overview as Array<Record<string, unknown>>)?.[0] || {}

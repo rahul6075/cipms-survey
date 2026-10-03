@@ -7,6 +7,7 @@ import { cn } from "@/shared/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar"
 import { Badge } from "@/shared/components/ui/badge"
 import { PhotoLightbox } from "@/shared/components/PhotoLightbox"
+import { useFetchJson } from "@/shared/hooks/use-fetch-json"
 import {
   Sheet,
   SheetContent,
@@ -46,21 +47,10 @@ export function ResponseDrawer({
   open: boolean
   onOpenChange: (o: boolean) => void
 }) {
-  const [data, setData] = React.useState<ResponseDetail | null>(null)
-  const [loading, setLoading] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!open || !responseId) return
-    let cancelled = false
-    setLoading(true)
-    setData(null)
-    fetch(`/api/responses/by-id/${responseId}`)
-      .then((r) => r.ok ? r.json() : Promise.reject())
-      .then((d) => !cancelled && setData(d))
-      .catch(() => !cancelled && setData(null))
-      .finally(() => !cancelled && setLoading(false))
-    return () => { cancelled = true }
-  }, [open, responseId])
+  const fetched = useFetchJson<ResponseDetail>(open && responseId ? `/api/responses/by-id/${responseId}` : null)
+  // Never show the previously opened response while the next one loads.
+  const data = fetched.stale ? null : fetched.data ?? null
+  const loading = fetched.loading
 
   const pradhan = React.useMemo(() => {
     if (!data) return null

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
+import { Types } from "mongoose"
 import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
 import User, { USER_STATUSES } from "@/modules/users/models/User"
@@ -42,6 +43,24 @@ function rewriteStatusFilters(state: DataTableState): DataTableState {
   }
 }
 
+/** KPI tile counts in one pass over the scope. */
+async function userCounts(scope: Record<string, unknown>) {
+  const [c] = await User.aggregate<{ total: number; active: number; agents: number; incompleteProfiles: number }>([
+    { $match: scope },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        active: { $sum: { $cond: [{ $eq: ["$is_active", true] }, 1, 0] } },
+        agents: { $sum: { $cond: [{ $eq: ["$role", "agent"] }, 1, 0] } },
+        incompleteProfiles: { $sum: { $cond: [{ $ne: ["$profile_complete", true] }, 1, 0] } },
+      },
+    },
+    { $project: { _id: 0 } },
+  ])
+  return c ?? { total: 0, active: 0, agents: 0, incompleteProfiles: 0 }
+}
+
 const DEFAULT_PAGE_SIZE = 25
 const MAX_PAGE_SIZE = 100
 
@@ -62,10 +81,11 @@ export async function GET(req: NextRequest) {
   await connectDB()
   const { searchParams } = new URL(req.url)
 
-  // Base scope: admins only see agents they created
+  // Base scope: admins only see agents they created. ObjectId (not string) because
+  // aggregate() doesn't cast like find() does.
   const scope: Record<string, unknown> =
     session.user.role === "admin"
-      ? { created_by: session.user.id, role: "agent" }
+      ? { created_by: new Types.ObjectId(session.user.id), role: "agent" }
       : {}
 
   /* ─── New DataTable path (?dt=…) — takes precedence ──────────
@@ -90,28 +110,12 @@ export async function GET(req: NextRequest) {
           .limit(limit)
           .lean(),
         User.countDocuments(match),
-        User.aggregate([
-          { $match: scope },
-          {
-            $facet: {
-              total: [{ $count: "n" }],
-              active: [{ $match: { is_active: true } }, { $count: "n" }],
-              agents: [{ $match: { role: "agent" } }, { $count: "n" }],
-              incomplete: [{ $match: { profile_complete: { $ne: true } } }, { $count: "n" }],
-            },
-          },
-        ]),
+        userCounts(scope),
       ])
-      const c = counts[0] || {}
-      const pick = (k: string) => (c[k]?.[0]?.n as number | undefined) || 0
       return NextResponse.json({
-        rows, total,
+        rows, total, counts,
         page: state.page, pageSize: state.pageSize,
         pageCount: Math.max(1, Math.ceil(total / state.pageSize)),
-        counts: {
-          total: pick("total"), active: pick("active"),
-          agents: pick("agents"), incompleteProfiles: pick("incomplete"),
-        },
       })
     } catch (e) {
       console.error("[/api/users dt] failed:", (e as Error).message)
@@ -161,21 +165,8 @@ export async function GET(req: NextRequest) {
       .limit(pageSize)
       .lean(),
     User.countDocuments(filter),
-    User.aggregate([
-      { $match: scope },
-      {
-        $facet: {
-          total: [{ $count: "n" }],
-          active: [{ $match: { is_active: true } }, { $count: "n" }],
-          agents: [{ $match: { role: "agent" } }, { $count: "n" }],
-          incomplete: [{ $match: { profile_complete: { $ne: true } } }, { $count: "n" }],
-        },
-      },
-    ]),
+    userCounts(scope),
   ])
-
-  const c = counts[0] || {}
-  const pick = (k: string) => (c[k]?.[0]?.n as number | undefined) || 0
 
   return NextResponse.json({
     rows,
@@ -183,12 +174,7 @@ export async function GET(req: NextRequest) {
     page,
     pageSize,
     pageCount: Math.max(1, Math.ceil(total / pageSize)),
-    counts: {
-      total: pick("total"),
-      active: pick("active"),
-      agents: pick("agents"),
-      incompleteProfiles: pick("incomplete"),
-    },
+    counts,
   })
 }
 

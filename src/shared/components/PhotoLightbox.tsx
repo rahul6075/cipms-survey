@@ -27,10 +27,6 @@ export function PhotoLightbox({
   className?: string
 }) {
   const [open, setOpen] = React.useState(false)
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => { setMounted(true) }, [])
-
   React.useEffect(() => {
     if (!open) return
     const prev = document.body.style.overflow
@@ -62,7 +58,7 @@ export function PhotoLightbox({
     </button>
   )
 
-  if (!mounted || !open) return trigger
+  if (!open) return trigger
 
   return (
     <>
@@ -77,6 +73,7 @@ function Overlay({ src, alt, onClose }: { src: string; alt?: string; onClose: ()
   const [tx, setTx] = React.useState(0)
   const [ty, setTy] = React.useState(0)
   const dragRef = React.useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
+  const [dragging, setDragging] = React.useState(false)
 
   const reset = () => { setScale(1); setTx(0); setTy(0) }
 
@@ -91,13 +88,14 @@ function Overlay({ src, alt, onClose }: { src: string; alt?: string; onClose: ()
     if (scale <= 1) return
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     dragRef.current = { x: e.clientX, y: e.clientY, tx, ty }
+    setDragging(true)
   }
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragRef.current) return
     setTx(dragRef.current.tx + (e.clientX - dragRef.current.x))
     setTy(dragRef.current.ty + (e.clientY - dragRef.current.y))
   }
-  const onPointerUp = () => { dragRef.current = null }
+  const onPointerUp = () => { dragRef.current = null; setDragging(false) }
 
   return (
     <div
@@ -138,7 +136,7 @@ function Overlay({ src, alt, onClose }: { src: string; alt?: string; onClose: ()
           onPointerCancel={onPointerUp}
           style={{
             transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
-            transition: dragRef.current ? "none" : "transform 150ms ease",
+            transition: dragging ? "none" : "transform 150ms ease",
           }}
         />
       </div>

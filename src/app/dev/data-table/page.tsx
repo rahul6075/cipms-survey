@@ -139,19 +139,11 @@ function Scenario({
   scope: string
 }) {
   const [state, setState] = React.useState<DataTableState>({ ...DEFAULT_STATE, ...initial })
-  const [loading, setLoading] = React.useState(false)
-  const [data, setData] = React.useState(() =>
-    queryDemo(ALL_ROWS, state, { searchColumns: ["name", "email", "district"] }),
+  // In-memory fixture: computed synchronously, no simulated latency.
+  const data = React.useMemo(
+    () => queryDemo(ALL_ROWS, state, { searchColumns: ["name", "email", "district"] }),
+    [state],
   )
-
-  React.useEffect(() => {
-    setLoading(true)
-    const t = setTimeout(() => {
-      setData(queryDemo(ALL_ROWS, state, { searchColumns: ["name", "email", "district"] }))
-      setLoading(false)
-    }, 150)
-    return () => clearTimeout(t)
-  }, [state])
 
   const bulk: DataTableBulkAction<DemoPradhan>[] = [
     { key: "verify", label: "Mark verified", icon: CheckCircle2, onRun: (rs) => alert(`Verify ${rs.length}`) },
@@ -171,7 +163,6 @@ function Scenario({
         total={data.total}
         state={state}
         onStateChange={(patch) => setState((p) => ({ ...p, ...patch }))}
-        loading={loading}
         rowKey={(r) => r._id}
         onRowClick={(r) => console.log("row click", r._id)}
         bulkActions={bulk}

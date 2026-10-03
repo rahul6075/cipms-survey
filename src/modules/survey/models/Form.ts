@@ -45,8 +45,10 @@ const FormSchema = new Schema({
 FormSchema.index({ created_by: 1, status: 1 })         // admin's forms filtered by status
 FormSchema.index({ status: 1, createdAt: -1 })          // all active forms sorted by date
 FormSchema.index({ "constituency.lok_sabha_no": 1 })    // forms by constituency
+FormSchema.index({ deleted_at: 1, created_by: 1, updatedAt: -1 }) // admin forms list, default sort
+FormSchema.index({ deleted_at: 1, updatedAt: -1 })      // super-admin forms list, default sort
 
-// Delete cached model so schema changes (new fields like `platforms`) take effect on hot reload
-if (mongoose.models?.Form) delete (mongoose.models as any).Form
-const Form = mongoose.model("Form", FormSchema)
+// Dev only: drop the cached model so schema edits take effect on hot reload.
+if (process.env.NODE_ENV !== "production" && mongoose.models.Form) mongoose.deleteModel("Form")
+const Form = mongoose.models.Form || mongoose.model("Form", FormSchema)
 export default Form

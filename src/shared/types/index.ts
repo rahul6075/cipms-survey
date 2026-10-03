@@ -32,6 +32,16 @@ export interface FormField {
   prefill_from?: string
 }
 
+export type ConstituencyAnswer = {
+  state?: string; ls_no?: number; ls_name?: string; vs_no?: number; vs_name?: string; block?: string
+}
+
+/** Any value a survey field can hold. */
+export type AnswerValue =
+  | string | number | boolean | string[]
+  | Record<string, string> | ConstituencyAnswer | { lat: number; lng: number }
+  | null | undefined
+
 export interface Constituency {
   lok_sabha_name: string
   lok_sabha_no: number
@@ -72,7 +82,7 @@ export interface IResponse {
   agent_id: string
   constituency: Partial<Constituency>
   submitter_info: { name?: string; phone?: string; village?: string }
-  answers: Record<string, any>
+  answers: Record<string, AnswerValue>
   location?: { lat: number; lng: number }
   submitted_at: string
 }

@@ -67,11 +67,15 @@ export function UserDrawer({
   const [loadingAssignments, setLoadingAssignments] = React.useState(false)
   const [openAssignmentId, setOpenAssignmentId] = React.useState<string | null>(null)
 
-  React.useEffect(() => {
+  // Reset per-user state only when a different user opens, so a list refresh
+  // (new object, same user) doesn't wipe in-progress profile edits.
+  const [shownUserId, setShownUserId] = React.useState(user?._id)
+  if (shownUserId !== user?._id) {
+    setShownUserId(user?._id)
     setProfile((user?.profile_data as Record<string, unknown>) || {})
     setAssignments(null)
     setOpenAssignmentId(null)
-  }, [user])
+  }
 
   // Lazy-load assignments the first time the drawer opens for a user — avoids
   // an extra round-trip when agents are just viewing profiles.

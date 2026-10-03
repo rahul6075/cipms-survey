@@ -3,15 +3,15 @@ import { useState, useRef, useMemo } from "react"
 import { Star, MapPin, X, Camera, FileText, Loader2, ZoomIn, ChevronDown, Search } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
-import type { FormField, SocialPlatform } from "@/shared/types"
+import type { AnswerValue, ConstituencyAnswer, FormField, SocialPlatform } from "@/shared/types"
 import { STATES_UTS, LS_CONSTITUENCIES, getLSByState } from "@/shared/data/constituencies"
 import { getVSByState, STATES_WITH_VS_DATA } from "@/shared/data/vs_constituencies"
 import { getBlocksByDistrict, getDistrictForVS, STATES_WITH_BLOCK_DATA } from "@/shared/data/blocks_data"
 
 interface Props {
   field: FormField
-  value?: any
-  onChange?: (v: any) => void
+  value?: AnswerValue
+  onChange?: (v: AnswerValue) => void
   preview?: boolean
 }
 
@@ -37,7 +37,7 @@ function PlatformIcon({ id, size = 16 }: { id: SocialPlatform; size?: number }) 
 }
 
 // ── Photo uploader with full preview ──────────────────────────────────────────
-function PhotoUploader({ value, onChange, preview }: { value?: string; onChange?: (v: any) => void; preview?: boolean }) {
+function PhotoUploader({ value, onChange, preview }: { value?: string; onChange?: (v: string | null) => void; preview?: boolean }) {
   const [uploading, setUploading] = useState(false)
   const [lightbox, setLightbox] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -183,7 +183,7 @@ function PhotoUploader({ value, onChange, preview }: { value?: string; onChange?
 }
 
 // ── PDF uploader ──────────────────────────────────────────────────────────────
-function PdfUploader({ value, onChange, preview }: { value?: string; onChange?: (v: any) => void; preview?: boolean }) {
+function PdfUploader({ value, onChange, preview }: { value?: string; onChange?: (v: string | null) => void; preview?: boolean }) {
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -289,8 +289,8 @@ function ConstituencyPicker({
   preview,
 }: {
   field: FormField
-  value?: { state?: string; ls_no?: number; ls_name?: string; vs_no?: number; vs_name?: string; block?: string }
-  onChange?: (v: any) => void
+  value?: ConstituencyAnswer
+  onChange?: (v: ConstituencyAnswer) => void
   preview?: boolean
 }) {
   const cfg = field.constituency_config || { show_state: true, show_ls: true, show_vs: true, show_block: false }
@@ -653,7 +653,12 @@ function ConstituencyPicker({
 
 // ── Main renderer ─────────────────────────────────────────────────────────────
 export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) {
-  const set = (v: any) => !preview && onChange?.(v)
+  const set = (v: AnswerValue) => !preview && onChange?.(v)
+  // Typed views of the raw answer; each field type reads the one it stores.
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : ""
+  const list = Array.isArray(value) ? value : []
+  const num = typeof value === "number" ? value : Number(value) || 0
+  const obj = value && typeof value === "object" && !Array.isArray(value) ? value : undefined
 
   const baseInput = "w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-orange-400 focus:bg-white transition-all"
 
@@ -666,7 +671,7 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
         <input
           type={field.type === "email" ? "email" : field.type === "phone" ? "tel" : field.type === "number" ? "number" : "text"}
           placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
-          value={value || ""}
+          value={text}
           readOnly={preview}
           onChange={(e) => set(e.target.value)}
           className={baseInput}
@@ -677,7 +682,7 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
       return (
         <textarea
           placeholder={field.placeholder || "Type your answer..."}
-          value={value || ""}
+          value={text}
           readOnly={preview}
           rows={3}
           onChange={(e) => set(e.target.value)}
@@ -689,7 +694,7 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
       return (
         <input
           type="date"
-          value={value || ""}
+          value={text}
           readOnly={preview}
           onChange={(e) => set(e.target.value)}
           className={baseInput}
@@ -700,7 +705,7 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
       return (
         <input
           type="time"
-          value={value || ""}
+          value={text}
           readOnly={preview}
           onChange={(e) => set(e.target.value)}
           className={baseInput}
@@ -755,14 +760,13 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
       return (
         <div className="space-y-2">
           {(field.options || []).map((opt) => {
-            const checked = Array.isArray(value) && value.includes(opt)
+            const checked = list.includes(opt)
             return (
               <button
                 key={opt}
                 type="button"
                 onClick={() => {
-                  const cur = Array.isArray(value) ? value : []
-                  set(checked ? cur.filter((v: string) => v !== opt) : [...cur, opt])
+                  set(checked ? list.filter((v) => v !== opt) : [...list, opt])
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-sm text-left transition-all
                   ${checked
@@ -788,7 +792,7 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
     case "dropdown":
       return (
         <select
-          value={value || ""}
+          value={text}
           disabled={preview}
           onChange={(e) => set(e.target.value)}
           className={`${baseInput} cursor-pointer appearance-none`}
@@ -806,7 +810,7 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} type="button" onClick={() => set(n)} className="group">
               <Star className={`w-8 h-8 transition-all
-                ${(value || 0) >= n
+                ${num >= n
                   ? "fill-orange-400 text-orange-400"
                   : "text-gray-200 group-hover:text-orange-300"
                 }`}
@@ -822,7 +826,7 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
         <p className="text-xs text-amber-500 px-1">No platforms selected — configure in form builder</p>
       )
       // value = Record<SocialPlatform, string>
-      const vals: Record<string, string> = value || {}
+      const vals = (obj ?? {}) as Record<string, string>
       if (preview) return (
         <div className="space-y-2">
           {platforms.map(pid => {
@@ -879,13 +883,13 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
     }
 
     case "constituency":
-      return <ConstituencyPicker field={field} value={value} onChange={onChange} preview={preview} />
+      return <ConstituencyPicker field={field} value={obj as ConstituencyAnswer | undefined} onChange={onChange} preview={preview} />
 
     case "photo":
-      return <PhotoUploader value={value} onChange={!preview ? onChange : undefined} preview={preview} />
+      return <PhotoUploader value={text || undefined} onChange={!preview ? onChange : undefined} preview={preview} />
 
     case "pdf":
-      return <PdfUploader value={value} onChange={!preview ? onChange : undefined} preview={preview} />
+      return <PdfUploader value={text || undefined} onChange={!preview ? onChange : undefined} preview={preview} />
 
     case "location":
       return (
@@ -894,14 +898,14 @@ export function SurveyFieldRenderer({ field, value, onChange, preview }: Props) 
           className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-gray-200 text-sm text-gray-500 hover:border-orange-300 hover:text-orange-500 transition-all"
         >
           <MapPin className="w-4 h-4 shrink-0" />
-          {value ? `${value.lat?.toFixed(4)}, ${value.lng?.toFixed(4)}` : "Capture GPS Location"}
+          {obj && "lat" in obj ? `${Number(obj.lat).toFixed(4)}, ${Number(obj.lng).toFixed(4)}` : "Capture GPS Location"}
         </button>
       )
 
     default:
       return (
         <input
-          value={value || ""}
+          value={text}
           readOnly={preview}
           onChange={(e) => set(e.target.value)}
           className={baseInput}

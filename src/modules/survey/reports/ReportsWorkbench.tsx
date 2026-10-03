@@ -53,6 +53,7 @@ import {
 import { MiniBarChart, EmptyChart, type BarDatum } from "@/shared/components/charts/MiniBarChart"
 import { Histogram } from "@/shared/components/charts/Histogram"
 import { Donut } from "@/shared/components/charts/Donut"
+import { useFetchJson } from "@/shared/hooks/use-fetch-json"
 import { ResponseExplorer } from "./ResponseExplorer"
 import { PivotBuilder } from "./PivotBuilder"
 
@@ -157,31 +158,10 @@ export function ReportsWorkbench({ initialForms }: { initialForms: ReportForm[] 
     [router, state]
   )
 
-  const [data, setData] = React.useState<AggregateResponse | null>(null)
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    if (!state.formId) return
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetch("/api/reports/aggregate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        formId: state.formId,
-        from: state.from,
-        to: state.to,
-        filters: state.filters,
-      }),
-    })
-      .then((r) => r.ok ? r.json() : Promise.reject(new Error("Failed to load report")))
-      .then((d) => { if (!cancelled) setData(d) })
-      .catch((e) => { if (!cancelled) setError(e.message || "Error") })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [state])
+  const { data, loading, error } = useFetchJson<AggregateResponse>(
+    state.formId ? "/api/reports/aggregate" : null,
+    { formId: state.formId, from: state.from, to: state.to, filters: state.filters },
+  )
 
   function addFilter(key: string, value: unknown) {
     const next = { ...state.filters }

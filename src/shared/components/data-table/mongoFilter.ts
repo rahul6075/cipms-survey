@@ -153,8 +153,10 @@ export function stateToMongo(
   if (qClause) combined.push(qClause)
   const match: Clause = combined.length === 0 ? {} : combined.length === 1 ? combined[0] : { $and: combined }
 
-  const sort = state.sort
-    ? { [columnMap[state.sort.column]?.field || state.sort.column]: (state.sort.dir === "asc" ? 1 : -1) as 1 | -1 }
+  // Only whitelisted columns are sortable, so clients can't force sorts on arbitrary paths.
+  const sortEntry = state.sort ? columnMap[state.sort.column] : undefined
+  const sort = state.sort && sortEntry
+    ? { [sortEntry.field || state.sort.column]: (state.sort.dir === "asc" ? 1 : -1) as 1 | -1 }
     : (opts?.defaultSort || { _id: -1 as const })
 
   const page = Math.max(1, state.page || 1)

@@ -1,15 +1,21 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { Vote, Loader2, CheckCircle, WifiOff, ShieldCheck, Lock } from "lucide-react"
 import { SurveyFieldRenderer } from "@/modules/survey/components/SurveyPreviewRenderer"
 import { PhotoLightbox } from "@/shared/components/PhotoLightbox"
-import type { IForm } from "@/shared/types"
+import type { AnswerValue, IForm } from "@/shared/types"
 
 interface Props { token: string }
 
 const DRAFT_KEY = (token: string) => `cipms_draft_${token}`
+
+function subscribeOnline(cb: () => void) {
+  window.addEventListener("online", cb)
+  window.addEventListener("offline", cb)
+  return () => { window.removeEventListener("online", cb); window.removeEventListener("offline", cb) }
+}
 
 export function SurveyForm({ token }: Props) {
   const [loading, setLoading] = useState(true)
@@ -20,26 +26,15 @@ export function SurveyForm({ token }: Props) {
     block?: string; district?: string; state?: string;
     phone?: string; whatsapp?: string
   } | null>(null)
-  const [prefill, setPrefill] = useState<Record<string, { value: any; locked: boolean }>>({})
-  const [answers, setAnswers] = useState<Record<string, any>>({})
+  const [prefill, setPrefill] = useState<Record<string, { value: AnswerValue; locked: boolean }>>({})
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({})
   const [consentGiven, setConsentGiven] = useState(false)
   const [consentShake, setConsentShake] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [offline, setOffline] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  // Server snapshot is "online" so the banner never renders during hydration.
+  const offline = !useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true)
   const [draftRestored, setDraftRestored] = useState(false)
-
-  // Online / offline detection
-  useEffect(() => {
-    setMounted(true)
-    setOffline(!navigator.onLine)
-    const up = () => setOffline(false)
-    const down = () => setOffline(true)
-    window.addEventListener("online", up)
-    window.addEventListener("offline", down)
-    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down) }
-  }, [])
 
   // Load form + restore draft
   useEffect(() => {
@@ -52,8 +47,8 @@ export function SurveyForm({ token }: Props) {
         setPrefill(data.prefill || {})
 
         // Seed answers from prefill map (locked fields come pre-filled).
-        const seeded: Record<string, any> = {}
-        for (const [fid, p] of Object.entries((data.prefill || {}) as Record<string, { value: any }>)) {
+        const seeded: Record<string, AnswerValue> = {}
+        for (const [fid, p] of Object.entries((data.prefill || {}) as Record<string, { value: AnswerValue }>)) {
           if (p && p.value !== undefined) seeded[fid] = p.value
         }
 
@@ -61,7 +56,7 @@ export function SurveyForm({ token }: Props) {
         try {
           const saved = localStorage.getItem(DRAFT_KEY(token))
           if (saved) {
-            const parsed = JSON.parse(saved)
+            const parsed = JSON.parse(saved) as { answers?: Record<string, AnswerValue> }
             if (parsed.answers && Object.keys(parsed.answers).length > 0) {
               // Locked fields always win over stale draft values.
               for (const [k, v] of Object.entries(parsed.answers)) {
@@ -86,7 +81,7 @@ export function SurveyForm({ token }: Props) {
     } catch { /* ignore quota errors */ }
   }, [answers, form, token])
 
-  const setAnswer = (id: string, value: any) =>
+  const setAnswer = (id: string, value: AnswerValue) =>
     setAnswers((prev) => ({ ...prev, [id]: value }))
 
   const clearDraft = () => {
@@ -115,17 +110,20 @@ export function SurveyForm({ token }: Props) {
 
     setSubmitting(true)
     const device = /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop"
-    const res = await fetch(`/api/survey/${token}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers, device }),
-    })
-    setSubmitting(false)
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/survey/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers, device }),
+      })
+      if (!res.ok) throw new Error()
       clearDraft()
       setSubmitted(true)
-    } else {
-      toast.error("Submission failed. Please try again.")
+    } catch {
+      // Network drops on mobile land here too; the draft stays saved for a retry.
+      toast.error("Submission failed. Your answers are saved; please try again.")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -192,12 +190,12 @@ export function SurveyForm({ token }: Props) {
     <div className="min-h-screen bg-[#f8f8f8]">
       {/* Offline banner */}
       <AnimatePresence>
-        {mounted && offline && (
+        {offline && (
           <motion.div
             initial={{ y: -40 }} animate={{ y: 0 }} exit={{ y: -40 }}
             className="bg-amber-500 text-white text-xs text-center py-2 px-4 flex items-center justify-center gap-2 font-medium"
           >
-            <WifiOff className="w-3 h-3" /> You're offline — your answers are auto-saved and will sync when you reconnect
+            <WifiOff className="w-3 h-3" /> You&apos;re offline. Your answers are saved on this device; submit once you&apos;re back online
           </motion.div>
         )}
       </AnimatePresence>

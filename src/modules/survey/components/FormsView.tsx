@@ -13,9 +13,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Clock,
-  Copy,
   Eye,
   FileText,
   LayoutGrid,
@@ -58,6 +56,7 @@ import {
 import { MiniSparkline } from "@/shared/components/MiniSparkline"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useIsMobile } from "@/shared/hooks/use-mobile"
+import { useFetchJson } from "@/shared/hooks/use-fetch-json"
 
 export type Role = "super_admin" | "admin" | "agent"
 
@@ -152,6 +151,10 @@ function writeState(patch: Partial<FilterState>, current: FilterState): string {
   return s ? `?${s}` : ""
 }
 
+function respondedWithinHour(iso: string | null) {
+  return !!iso && Date.now() - new Date(iso).getTime() < 60 * 60 * 1000
+}
+
 function timeAgo(iso?: string | null) {
   if (!iso) return "—"
   const diff = Math.max(0, Date.now() - new Date(iso).getTime())
@@ -182,32 +185,16 @@ export function FormsView({ sessionRole }: { sessionRole: Role }) {
     router.replace(`/dashboard/forms${writeState({ q: debouncedSearch, page: 1 }, state)}`, { scroll: false })
   }, [debouncedSearch, router, state])
 
-  const [data, setData] = React.useState<ApiResponse | null>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [refreshKey, setRefreshKey] = React.useState(0)
+  const apiQuery = new URLSearchParams()
+  if (state.q) apiQuery.set("q", state.q)
+  if (state.status !== "all") apiQuery.set("status", state.status)
+  if (state.access !== "all") apiQuery.set("access", state.access)
+  if (state.owner !== "all") apiQuery.set("owner", state.owner)
+  apiQuery.set("sort", state.sort)
+  apiQuery.set("page", String(state.page))
+  apiQuery.set("pageSize", String(state.pageSize))
+  const { data, loading, error, reload: refresh } = useFetchJson<ApiResponse>(`/api/forms?${apiQuery}`)
 
-  React.useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const sp = new URLSearchParams()
-    if (state.q) sp.set("q", state.q)
-    if (state.status !== "all") sp.set("status", state.status)
-    if (state.access !== "all") sp.set("access", state.access)
-    if (state.owner !== "all") sp.set("owner", state.owner)
-    sp.set("sort", state.sort)
-    sp.set("page", String(state.page))
-    sp.set("pageSize", String(state.pageSize))
-    fetch(`/api/forms?${sp}`)
-      .then((r) => r.ok ? r.json() : Promise.reject(new Error("Failed to load forms")))
-      .then((d) => { if (!cancelled) setData(d) })
-      .catch((e) => { if (!cancelled) setError(e.message || "Error loading") })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [state, refreshKey])
-
-  const refresh = React.useCallback(() => setRefreshKey((k) => k + 1), [])
   const update = React.useCallback(
     (patch: Partial<FilterState>) =>
       router.replace(`/dashboard/forms${writeState(patch, state)}`, { scroll: false }),
@@ -215,15 +202,18 @@ export function FormsView({ sessionRole }: { sessionRole: Role }) {
   )
 
   // Selection
-  const [selected, setSelected] = React.useState<Set<string>>(new Set())
-  const toggleRow = (id: string, c: boolean) =>
-    setSelected((prev) => {
-      const n = new Set(prev); c ? n.add(id) : n.delete(id); return n
-    })
+  // Selection belongs to one page/filter combination and clears when it changes.
+  const selectionKey = searchParams.toString()
+  const [selection, setSelection] = React.useState<{ key: string; ids: Set<string> }>({ key: selectionKey, ids: new Set() })
+  const selected = selection.key === selectionKey ? selection.ids : new Set<string>()
+  const toggleRow = (id: string, c: boolean) => {
+    const n = new Set(selected)
+    if (c) n.add(id)
+    else n.delete(id)
+    setSelection({ key: selectionKey, ids: n })
+  }
   const toggleAll = (c: boolean) =>
-    setSelected(() => (c && data ? new Set(data.rows.map((r) => r._id)) : new Set()))
-
-  React.useEffect(() => { setSelected(new Set()) }, [state])
+    setSelection({ key: selectionKey, ids: c && data ? new Set(data.rows.map((r) => r._id)) : new Set() })
 
   // Inline expand
   const [openId, setOpenId] = React.useState<string | null>(null)
@@ -391,7 +381,7 @@ export function FormsView({ sessionRole }: { sessionRole: Role }) {
           <Button size="sm" variant="ghost" className="h-7">Set active</Button>
           <Button size="sm" variant="ghost" className="h-7">Set draft</Button>
           <Button size="sm" variant="ghost" className="h-7 text-destructive">Archive</Button>
-          <Button size="sm" variant="ghost" className="ml-auto h-7" onClick={() => setSelected(new Set())}>
+          <Button size="sm" variant="ghost" className="ml-auto h-7" onClick={() => setSelection({ key: selectionKey, ids: new Set() })}>
             <X className="h-3 w-3" /> Clear
           </Button>
         </div>
@@ -400,15 +390,14 @@ export function FormsView({ sessionRole }: { sessionRole: Role }) {
       {/* View */}
       {isMobile || state.view === "gallery" ? (
         <GalleryView
-          data={data}
+          data={data ?? null}
           loading={loading}
           error={error}
           onStatus={(id, status) => flipStatus(id, status, refresh)}
-          sessionRole={sessionRole}
         />
       ) : (
         <TableView
-          data={data}
+          data={data ?? null}
           loading={loading}
           error={error}
           selected={selected}
@@ -604,6 +593,34 @@ function ViewToggle({ value, onChange }: { value: "table" | "gallery"; onChange:
 
 /* ─── table ──────────────────────────────────────────────────── */
 
+function SortHead({
+  field, children, align, sort, onSort,
+}: {
+  field: string
+  children: React.ReactNode
+  align?: "left" | "right"
+  sort: string
+  onSort: (v: string) => void
+}) {
+  const active = sort === field || sort === `-${field}`
+  const nextSort = sort === `-${field}` ? field : `-${field}`
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined}>
+      <button
+        type="button"
+        onClick={() => onSort(nextSort)}
+        className={cn(
+          "inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide",
+          active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        {children}
+        {active && (sort.startsWith("-") ? "↓" : "↑")}
+      </button>
+    </TableHead>
+  )
+}
+
 function TableView({
   data,
   loading,
@@ -635,26 +652,6 @@ function TableView({
 }) {
   const rows = data?.rows || []
   const allSel = rows.length > 0 && rows.every((r) => selected.has(r._id))
-  const SortHead = ({ field, children, align }: { field: string; children: React.ReactNode; align?: "left" | "right" }) => {
-    const active = sort === field || sort === `-${field}`
-    const nextSort = sort === `-${field}` ? field : `-${field}`
-    return (
-      <TableHead className={align === "right" ? "text-right" : undefined}>
-        <button
-          type="button"
-          onClick={() => onSort(nextSort)}
-          className={cn(
-            "inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide",
-            active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {children}
-          {active && (sort.startsWith("-") ? "↓" : "↑")}
-        </button>
-      </TableHead>
-    )
-  }
-
   return (
     <Card className="overflow-hidden p-0">
       <div className="overflow-x-auto">
@@ -664,16 +661,16 @@ function TableView({
               <TableHead className="w-10 pr-0">
                 <Checkbox checked={allSel} onCheckedChange={(c) => toggleAll(Boolean(c))} aria-label="Select all" />
               </TableHead>
-              <SortHead field="title">Form</SortHead>
-              <SortHead field="status">Status</SortHead>
+              <SortHead field="title" sort={sort} onSort={onSort}>Form</SortHead>
+              <SortHead field="status" sort={sort} onSort={onSort}>Status</SortHead>
               <TableHead className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Fields</TableHead>
               <TableHead className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Assigned</TableHead>
-              <SortHead field="responses_total">Responses (7d)</SortHead>
-              <SortHead field="last_response_at">Last</SortHead>
+              <SortHead field="responses_total" sort={sort} onSort={onSort}>Responses (7d)</SortHead>
+              <SortHead field="last_response_at" sort={sort} onSort={onSort}>Last</SortHead>
               {sessionRole === "super_admin" && (
                 <TableHead className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Owner</TableHead>
               )}
-              <SortHead field="updatedAt">Updated</SortHead>
+              <SortHead field="updatedAt" sort={sort} onSort={onSort}>Updated</SortHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -699,8 +696,7 @@ function TableView({
             )}
             {rows.map((f) => {
               const open = openId === f._id
-              const stMeta = STATUS_META[f.status]
-              const hot = f.last_response_at && Date.now() - new Date(f.last_response_at).getTime() < 60 * 60 * 1000
+              const hot = respondedWithinHour(f.last_response_at)
               return (
                 <React.Fragment key={f._id}>
                   <TableRow
@@ -860,7 +856,7 @@ function RowActions({ form, onChange }: { form: FormRow; onChange: () => void })
         <DropdownMenuItem render={<Link href={`/dashboard/forms/${form._id}/edit`} />}>
           <Pencil className="h-3.5 w-3.5" /> Edit
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href={`/dashboard/forms/${form._id}/responses`} />}>
+        <DropdownMenuItem render={<Link href={`/dashboard/reports?formId=${form._id}`} />}>
           <Eye className="h-3.5 w-3.5" /> Responses
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href={`/dashboard/forms/${form._id}/assign`} />}>
@@ -947,7 +943,7 @@ function RowExpand({ form }: { form: FormRow }) {
           size="sm"
           className="w-full justify-start"
           nativeButton={false}
-          render={<Link href={`/dashboard/forms/${form._id}/responses`} />}
+          render={<Link href={`/dashboard/reports?formId=${form._id}`} />}
         >
           <Eye className="h-3.5 w-3.5" /> View responses ({form.responses_total})
           <ArrowUpRight className="ml-auto h-3 w-3" />
@@ -999,13 +995,11 @@ function GalleryView({
   loading,
   error,
   onStatus,
-  sessionRole,
 }: {
   data: ApiResponse | null
   loading: boolean
   error: string | null
   onStatus: (id: string, status: FormStatus) => void
-  sessionRole: Role
 }) {
   const rows = data?.rows || []
   if (loading && rows.length === 0) {
@@ -1017,8 +1011,7 @@ function GalleryView({
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((f) => {
-        const meta = STATUS_META[f.status]
-        const hot = f.last_response_at && Date.now() - new Date(f.last_response_at).getTime() < 60 * 60 * 1000
+        const hot = respondedWithinHour(f.last_response_at)
         return (
           <Card key={f._id} className="group relative overflow-hidden p-0 transition hover:shadow-md">
             <div className="h-24 bg-gradient-to-br from-primary/15 via-primary/5 to-background p-4">
@@ -1057,7 +1050,7 @@ function GalleryView({
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" nativeButton={false} render={<Link href={`/dashboard/forms/${f._id}/edit`} />}>
                     <Pencil className="h-3 w-3" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" nativeButton={false} render={<Link href={`/dashboard/forms/${f._id}/responses`} />}>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" nativeButton={false} render={<Link href={`/dashboard/reports?formId=${f._id}`} />}>
                     <Eye className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" nativeButton={false} render={<Link href={`/dashboard/forms/${f._id}/assign`} />}>

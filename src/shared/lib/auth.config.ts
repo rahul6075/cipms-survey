@@ -7,7 +7,7 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const role = (auth?.user as any)?.role
+      const role = auth?.user?.role
       const isDashboard = nextUrl.pathname.startsWith("/dashboard")
       if (isDashboard) return isLoggedIn && role !== "agent"
       return true
@@ -15,7 +15,7 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
-        token.role = (user as any).role
+        token.role = user.role
       }
       return token
     },

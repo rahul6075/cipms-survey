@@ -12,6 +12,8 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/shared/components/ui/select"
+import { useFetchJson } from "@/shared/hooks/use-fetch-json"
+import type { PivotCell } from "@/app/api/reports/pivot/route"
 import type { FormField } from "./ReportsWorkbench"
 
 type Metric = "count" | "unique_agents" | "avg"
@@ -58,28 +60,16 @@ export function PivotBuilder({
   const [view, setView] = React.useState<"heatmap" | "bars">("heatmap")
   const [open, setOpen] = React.useState(false)
 
-  const [rows, setRows] = React.useState<Array<Record<string, unknown>> | null>(null)
-  const [loading, setLoading] = React.useState(false)
+  // Grouped server-side over every response in scope; only fetched once opened.
+  const { data, loading, error } = useFetchJson<{ cells: PivotCell[] }>(
+    open && row ? "/api/reports/pivot" : null,
+    { formId, from, to, filters, row, col, metricField: metric === "avg" ? metricField : null },
+  )
 
-  React.useEffect(() => {
-    // Only fetch when the user actually opens the builder.
-    if (!open || !row) return
-    let cancelled = false
-    setLoading(true)
-    const sp = new URLSearchParams({ formId, pageSize: "200", page: "1", from, to })
-    for (const [k, v] of Object.entries(filters)) if (v) sp.set(`filter.${k}`, v)
-    fetch(`/api/responses?${sp}`)
-      .then((r) => r.ok ? r.json() : Promise.reject(new Error("Failed to load responses")))
-      .then((d) => { if (!cancelled) setRows(d.rows || []) })
-      .catch(() => !cancelled && setRows([]))
-      .finally(() => !cancelled && setLoading(false))
-    return () => { cancelled = true }
-  }, [open, formId, from, to, filters, row])
-
-  const pivot = React.useMemo(() => {
-    if (!rows) return null
-    return computePivot({ rows, rowKey: row, colKey: col, metric, metricField })
-  }, [rows, row, col, metric, metricField])
+  const pivot = React.useMemo(
+    () => (data ? computePivot(data.cells, metric, !!col && col !== "__none") : null),
+    [data, metric, col],
+  )
 
   if (dimFields.length === 0) return null
 
@@ -197,8 +187,12 @@ export function PivotBuilder({
           </div>
 
           {/* Result */}
-          {loading ? (
+          {loading && !pivot ? (
             <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : error ? (
+            <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-destructive/40 text-xs text-destructive">
+              {error}
+            </div>
           ) : !pivot || pivot.rows.length === 0 ? (
             <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-border/70 text-xs text-muted-foreground">
               No data for the current scope. Try widening the date range or clearing filters.
@@ -210,8 +204,8 @@ export function PivotBuilder({
           )}
 
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <RefreshCw className="h-2.5 w-2.5" />
-            Based on the latest 200 responses in the current filter scope.
+            <RefreshCw className={cn("h-2.5 w-2.5", loading && "animate-spin")} />
+            Based on every response in the current filter scope. Shows the top 20 rows and 12 columns.
           </p>
         </div>
       )}
@@ -230,89 +224,59 @@ type Pivot = {
   totalByCol: Record<string, number>
 }
 
-function computePivot({
-  rows,
-  rowKey,
-  colKey,
-  metric,
-  metricField,
-}: {
-  rows: Array<Record<string, unknown>>
-  rowKey: string
-  colKey: string
-  metric: Metric
-  metricField: string
-}): Pivot {
-  const cell: Record<string, Record<string, { n: number; sum: number; agents: Set<string> }>> = {}
-  const rowSet = new Set<string>()
-  const colSet = new Set<string>()
-  const NONE = "·"
+const MAX_ROWS = 20
+const MAX_COLS = 12
 
-  for (const r of rows) {
-    const rowVal = readDim(r, rowKey)
-    const colVal = colKey && colKey !== "__none" ? readDim(r, colKey) : NONE
-    const rows_ = Array.isArray(rowVal) ? rowVal : [rowVal]
-    const cols_ = Array.isArray(colVal) ? colVal : [colVal]
-    for (const rv of rows_) {
-      for (const cv of cols_) {
-        const rk = normalise(rv)
-        const ck = normalise(cv)
-        rowSet.add(rk)
-        colSet.add(ck)
-        if (!cell[rk]) cell[rk] = {}
-        if (!cell[rk][ck]) cell[rk][ck] = { n: 0, sum: 0, agents: new Set() }
-        cell[rk][ck].n += 1
-        if (metric === "avg" && metricField) {
-          const raw = (r.answers as Record<string, unknown> | undefined)?.[metricField]
-          const num = Number(raw)
-          if (!Number.isNaN(num)) cell[rk][ck].sum += num
-        }
-        const agentId = (r.agent as { _id?: string } | null | undefined)?._id
-        if (agentId) cell[rk][ck].agents.add(String(agentId))
-      }
-    }
+function computePivot(cells: PivotCell[], metric: Metric, hasCol: boolean): Pivot {
+  type Bucket = { n: number; agents: number; sum: number; numeric: number }
+  const grid: Record<string, Record<string, Bucket>> = {}
+  const rowWeight: Record<string, number> = {}
+  const colWeight: Record<string, number> = {}
+
+  // Values that normalise to the same label (e.g. null and "") merge here.
+  for (const cell of cells) {
+    const rk = normalise(cell.r)
+    const ck = hasCol ? normalise(cell.c) : "·"
+    const b = ((grid[rk] ||= {})[ck] ||= { n: 0, agents: 0, sum: 0, numeric: 0 })
+    b.n += cell.n
+    b.agents += cell.agents
+    b.sum += cell.sum
+    b.numeric += cell.numeric
+    rowWeight[rk] = (rowWeight[rk] || 0) + cell.n
+    colWeight[ck] = (colWeight[ck] || 0) + cell.n
   }
 
-  const rowKeys = Array.from(rowSet).sort((a, b) => a.localeCompare(b)).slice(0, 20)
-  const colKeys = Array.from(colSet).sort((a, b) => a.localeCompare(b)).slice(0, 12)
+  const byWeight = (w: Record<string, number>) => (a: string, b: string) => w[b] - w[a] || a.localeCompare(b)
+  const rowKeys = Object.keys(rowWeight).sort(byWeight(rowWeight)).slice(0, MAX_ROWS)
+  const colKeys = Object.keys(colWeight).sort(byWeight(colWeight)).slice(0, MAX_COLS)
 
   const finalCell: Record<string, Record<string, number>> = {}
-  let max = 0
   const totalByRow: Record<string, number> = {}
   const totalByCol: Record<string, number> = {}
-
+  let max = 0
   for (const rk of rowKeys) {
     finalCell[rk] = {}
     for (const ck of colKeys) {
-      const bucket = cell[rk]?.[ck]
+      const b = grid[rk]?.[ck]
       let value = 0
-      if (bucket) {
-        if (metric === "count") value = bucket.n
-        else if (metric === "unique_agents") value = bucket.agents.size
-        else if (metric === "avg") value = bucket.n > 0 ? bucket.sum / bucket.n : 0
+      if (b) {
+        if (metric === "count") value = b.n
+        else if (metric === "unique_agents") value = b.agents
+        else value = b.numeric > 0 ? b.sum / b.numeric : 0
       }
       finalCell[rk][ck] = Number(value.toFixed(2))
       max = Math.max(max, value)
-      totalByRow[rk] = (totalByRow[rk] || 0) + (metric === "avg" ? 0 : value)
-      totalByCol[ck] = (totalByCol[ck] || 0) + (metric === "avg" ? 0 : value)
+      if (metric !== "avg") {
+        totalByRow[rk] = (totalByRow[rk] || 0) + value
+        totalByCol[ck] = (totalByCol[ck] || 0) + value
+      }
     }
   }
-
   return { rows: rowKeys, cols: colKeys, cell: finalCell, max, totalByRow, totalByCol }
 }
 
-function readDim(response: Record<string, unknown>, key: string): unknown {
-  if (key === "__device") return response.device || "—"
-  const agentProfile = (response.agent as { profile_data?: Record<string, unknown> } | null | undefined)?.profile_data
-  if (key === "__panchayat") return (agentProfile?.panchayat as string | undefined) || "—"
-  if (key === "__state") return (agentProfile?.state as string | undefined) || "—"
-  const v = (response.answers as Record<string, unknown> | undefined)?.[key]
-  if (v === undefined || v === null || v === "") return "—"
-  return v
-}
-
 function normalise(v: unknown): string {
-  if (v === null || v === undefined) return "—"
+  if (v === null || v === undefined || v === "") return "—"
   if (typeof v === "boolean") return v ? "Yes" : "No"
   return String(v)
 }

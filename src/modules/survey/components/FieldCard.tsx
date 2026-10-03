@@ -1,11 +1,11 @@
 "use client"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, Trash2, ChevronUp, ChevronDown as ArrowDown, Type, Hash, Mail, Phone, List, CheckSquare, ToggleLeft, Calendar, Star, Image, FileText, MapPin, AlignLeft, Clock, Share2, Landmark } from "lucide-react"
+import { ChevronDown, Trash2, ChevronUp, ChevronDown as ArrowDown, Type, Hash, Mail, Phone, List, CheckSquare, ToggleLeft, Calendar, Star, Image, FileText, MapPin, AlignLeft, Clock, Share2, Landmark, type LucideIcon } from "lucide-react"
 import { Switch } from "@/shared/components/ui/switch"
 import { cn } from "@/shared/lib/utils"
 import type { FormField, FieldType, SocialPlatform } from "@/shared/types"
 
-const FIELD_META: Record<FieldType, { label: string; icon: any; color: string; bg: string }> = {
+const FIELD_META: Record<FieldType, { label: string; icon: LucideIcon; color: string; bg: string }> = {
   short_text:  { label: "Short Text",      icon: Type,        color: "text-blue-500",    bg: "bg-blue-50" },
   long_text:   { label: "Long Text",       icon: AlignLeft,   color: "text-indigo-500",  bg: "bg-indigo-50" },
   number:      { label: "Number",          icon: Hash,        color: "text-violet-500",  bg: "bg-violet-50" },

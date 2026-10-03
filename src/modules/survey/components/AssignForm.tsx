@@ -7,7 +7,15 @@ import { Badge } from "@/shared/components/ui/badge"
 import { cn } from "@/shared/lib/utils"
 
 interface Agent { _id: string; name: string; email: string }
-interface Props { form: any; agents: Agent[]; assignments: any[] }
+interface AssignmentRow {
+  _id: string
+  token: string
+  status: string
+  village?: string
+  total_submissions?: number
+  agent_id: Agent | null
+}
+interface Props { form: { _id: string; title: string }; agents: Agent[]; assignments: AssignmentRow[] }
 
 function AgentCombobox({ agents, value, onChange }: { agents: Agent[]; value: Agent | null; onChange: (a: Agent | null) => void }) {
   const [open, setOpen] = useState(false)
@@ -154,8 +162,8 @@ export function AssignForm({ form, agents, assignments }: Props) {
     if (navigator.share) {
       try {
         await navigator.share({ title: `CIPMS Survey — ${form.title}`, text, url })
-      } catch (e: any) {
-        if (e?.name !== "AbortError") {
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
           await navigator.clipboard.writeText(url)
           toast.success("Link copied to clipboard!")
         }
@@ -304,7 +312,7 @@ export function AssignForm({ form, agents, assignments }: Props) {
             ) : (
               <div className="divide-y divide-gray-50">
                 <AnimatePresence initial={false}>
-                  {localAssignments.map((a: any, idx: number) => (
+                  {localAssignments.map((a, idx) => (
                     <motion.div
                       key={a._id || idx}
                       initial={{ opacity: 0, y: -8 }}
