@@ -162,7 +162,7 @@ export function PradhanIntakeView({ sessionRole }: { sessionRole: Role }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Pradhan intake</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -170,8 +170,8 @@ export function PradhanIntakeView({ sessionRole }: { sessionRole: Role }) {
         </p>
       </div>
 
-      <Card className="p-5">
-        <form onSubmit={submit} className="space-y-5">
+      <Card className="p-4">
+        <form onSubmit={submit} className="space-y-4">
           {/* Photo */}
           <section className="flex items-start gap-4">
             <div className="relative shrink-0">

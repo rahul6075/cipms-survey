@@ -182,7 +182,7 @@ export function AssignForm({ form, agents, assignments }: Props) {
   const totalSubmissions = localAssignments.reduce((s, a) => s + (a.total_submissions || 0), 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-bold text-gray-900">Assign Form</h1>
@@ -199,7 +199,7 @@ export function AssignForm({ form, agents, assignments }: Props) {
           { label: "Total Responses", value: totalSubmissions, icon: BarChart2, color: "text-blue-500", bg: "bg-blue-50" },
           { label: "Active Links", value: localAssignments.filter(a => a.status === "active").length, icon: Link2, color: "text-green-500", bg: "bg-green-50" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+          <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
             <div className={`w-11 h-11 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
               <s.icon className={`w-5 h-5 ${s.color}`} />
             </div>
@@ -212,11 +212,11 @@ export function AssignForm({ form, agents, assignments }: Props) {
       </motion.div>
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 items-start">
 
         {/* LEFT — Assign card */}
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 sticky top-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4 sticky top-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
                 <Users className="w-5 h-5 text-orange-500" />
@@ -289,7 +289,7 @@ export function AssignForm({ form, agents, assignments }: Props) {
         {/* RIGHT — Assignments list */}
         <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-gray-900">Assigned Gram Pradhans</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Share links directly via WhatsApp</p>
@@ -318,7 +318,7 @@ export function AssignForm({ form, agents, assignments }: Props) {
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.04 }}
-                      className="flex items-center gap-5 px-6 py-5 hover:bg-gray-50/80 transition-colors"
+                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50/80 transition-colors"
                     >
                       {/* Avatar */}
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">

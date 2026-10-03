@@ -233,7 +233,7 @@ export function FormsView({ sessionRole }: { sessionRole: Role }) {
   }, [data])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -888,7 +888,7 @@ function RowExpand({ form }: { form: FormRow }) {
   const intakeHref = `/dashboard/pradhan-intake?form=${form._id}`
 
   return (
-    <div className="grid gap-5 p-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
       {/* 7-day chart */}
       <div className="rounded-lg border border-border/70 bg-card p-4">
         <div className="mb-3 flex items-center justify-between">

@@ -74,7 +74,7 @@ export function PivotBuilder({
   if (dimFields.length === 0) return null
 
   return (
-    <Card className="p-5">
+    <Card className="p-4">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">Pivot</h3>

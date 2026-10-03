@@ -208,7 +208,7 @@ export function ReportsWorkbench({ initialForms }: { initialForms: ReportForm[] 
   const currentForm = initialForms.find((f) => f._id === state.formId) || null
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -293,7 +293,7 @@ export function ReportsWorkbench({ initialForms }: { initialForms: ReportForm[] 
         <>
           <KpiStrip overview={data.overview} />
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-3">
             <TimeseriesCard timeseries={data.timeseries} bucket={data.scope.bucket} className="lg:col-span-2" />
             <LeaderboardCard leaderboard={data.leaderboard} onPick={(agentId) => addFilter("__agent", agentId)} />
           </div>
@@ -508,7 +508,7 @@ function TimeseriesCard({
   const peak = data.reduce((best, d) => (d.n > best.n ? d : best), data[0] || { label: "", n: 0 })
 
   return (
-    <Card className={cn("p-5", className)}>
+    <Card className={cn("p-4", className)}>
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">Responses over time</h3>
@@ -577,7 +577,7 @@ function LeaderboardCard({
 }) {
   const max = leaderboard[0]?.submissions || 1
   return (
-    <Card className="flex flex-col p-5">
+    <Card className="flex flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Top Pradhans</h3>
         <Trophy className="h-3.5 w-3.5 text-muted-foreground" />

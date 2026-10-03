@@ -255,14 +255,14 @@ export function FormBuilderView({ initialData }: { initialData?: Partial<Builder
   const selected = form.fields.find((f) => f.id === selectedId) || null
 
   return (
-    <div className="-m-4 flex min-h-[calc(100vh-7rem)] flex-col sm:-m-6 lg:-m-8">
+    <div className="-m-3 flex min-h-[calc(100svh-3.5rem)] flex-col sm:-m-4">
       {/*
        * Builder header sticks to the top of its own scroll container (the
        * dashboard layout's SidebarInset body) — which already sits below the
        * global AppHeader. So we use top-0 here; using top-14 left a 56px gap.
        */}
-      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/95 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3">
+      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/95 px-3 py-2.5 backdrop-blur sm:px-4">
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
@@ -310,8 +310,8 @@ export function FormBuilderView({ initialData }: { initialData?: Partial<Builder
       </header>
 
       {draftFound && (
-        <div className="border-b border-border/60 bg-primary/5 px-4 py-2 sm:px-6">
-          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 text-xs">
+        <div className="border-b border-border/60 bg-primary/5 px-3 py-2 sm:px-4">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="font-medium">Unsaved draft from {new Date(draftFound.savedAt).toLocaleString("en-IN")} found.</span>
             <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={restoreDraft}>Restore</Button>
             <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={dismissDraft}>Dismiss</Button>
@@ -320,7 +320,7 @@ export function FormBuilderView({ initialData }: { initialData?: Partial<Builder
       )}
 
       {/* Three-pane layout */}
-      <div className="mx-auto flex w-full max-w-[1600px] flex-1 gap-4 px-4 py-4 sm:px-6 sm:py-6">
+      <div className="flex w-full flex-1 gap-3 p-3 sm:p-4">
         <aside className="hidden w-[240px] shrink-0 flex-col gap-4 lg:flex">
           <OutlineTree
             fields={form.fields}

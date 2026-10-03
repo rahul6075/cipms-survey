@@ -173,7 +173,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
   const todayVsYesterday = stats.todayCount - yesterday
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Greeting + top row (3 cards) ------------------------------ */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -184,9 +184,9 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         {/* Overview (pills) */}
-        <Card className="p-5">
+        <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Overview</h2>
             <Button
@@ -223,7 +223,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
         </Card>
 
         {/* Active forms table */}
-        <Card className="flex flex-col p-5">
+        <Card className="flex flex-col p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Top forms</h2>
             <Badge variant="secondary" className="text-[10px]">by responses</Badge>
@@ -274,7 +274,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
         </Card>
 
         {/* Trends table */}
-        <Card className="flex flex-col p-5">
+        <Card className="flex flex-col p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Trends</h2>
             <Flame className="h-3.5 w-3.5 text-muted-foreground" />
@@ -319,7 +319,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
       </div>
 
       {/* AI assistant strip (parallel to screenshot's AI-AGENT) ----- */}
-      <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background p-5">
+      <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background p-4">
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-2xl" />
         <div className="relative flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -368,7 +368,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
             <KpiCard accent="bg-primary" label="Avg/Form" value={fmt(Math.round(stats.totalResponses / Math.max(1, stats.totalForms)))} compareTo="prev. month" delta={9.2} />
           </div>
 
-          <Card className="p-5">
+          <Card className="p-4">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold">Submissions · Last 7 days</h3>
@@ -383,7 +383,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
         </TabsContent>
 
         <TabsContent value="activity">
-          <Card className="p-5">
+          <Card className="p-4">
             <h3 className="mb-3 text-sm font-semibold">Recent submissions</h3>
             {recentActivity.length === 0 ? (
               <EmptyState icon={Activity} title="No recent activity" sub="New responses will show up here." />
@@ -410,7 +410,7 @@ export function DashboardHome({ name, role, stats, weeklyData, topForms, recentA
         </TabsContent>
 
         <TabsContent value="ai">
-          <Card className="p-8 text-center">
+          <Card className="p-6 text-center">
             <Sparkles className="mx-auto mb-3 h-8 w-8 text-primary/80" />
             <h3 className="text-sm font-semibold">AI Recommendations</h3>
             <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
