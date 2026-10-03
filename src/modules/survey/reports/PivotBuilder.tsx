@@ -11,7 +11,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/shared/components/ui/select"
 import type { FormField } from "./ReportsWorkbench"
 
@@ -110,7 +109,11 @@ export function PivotBuilder({
             <div className="min-w-[160px] flex-1">
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Row</label>
               <Select value={row} onValueChange={(v) => setRow(v || "")}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 w-full min-w-0">
+                  <span className="truncate text-left">
+                    {dimFields.find((d) => d.id === row)?.label || "Select…"}
+                  </span>
+                </SelectTrigger>
                 <SelectContent>
                   {dimFields.map((d) => (
                     <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>
@@ -121,7 +124,11 @@ export function PivotBuilder({
             <div className="min-w-[160px] flex-1">
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Column</label>
               <Select value={col} onValueChange={(v) => setCol(v || "")}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 w-full min-w-0">
+                  <span className="truncate text-left">
+                    {col === "__none" ? "— None (totals only) —" : dimFields.find((d) => d.id === col)?.label || "Select…"}
+                  </span>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">— None (totals only) —</SelectItem>
                   {dimFields.map((d) => (
@@ -133,7 +140,11 @@ export function PivotBuilder({
             <div className="min-w-[140px]">
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Metric</label>
               <Select value={metric} onValueChange={(v) => setMetric(v as Metric)}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 w-full min-w-0">
+                  <span className="truncate text-left">
+                    {metric === "count" ? "Response count" : metric === "unique_agents" ? "Unique Pradhans" : "Avg of numeric field"}
+                  </span>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="count">Response count</SelectItem>
                   <SelectItem value="unique_agents">Unique Pradhans</SelectItem>
@@ -145,7 +156,11 @@ export function PivotBuilder({
               <div className="min-w-[140px]">
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Field</label>
                 <Select value={metricField} onValueChange={(v) => setMetricField(v || "")}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-full min-w-0">
+                    <span className="truncate text-left">
+                      {numericFields.find((f) => f.id === metricField)?.label || "Select…"}
+                    </span>
+                  </SelectTrigger>
                   <SelectContent>
                     {numericFields.map((f) => (
                       <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>

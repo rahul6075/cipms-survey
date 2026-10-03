@@ -12,7 +12,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/shared/components/ui/select"
 import { Switch } from "@/shared/components/ui/switch"
 import { Textarea } from "@/shared/components/ui/textarea"
@@ -86,7 +85,9 @@ function FormSettings({ form, onForm }: { form: BuilderForm; onForm: (patch: Par
       <Section title="Visibility">
         <Field label="Status">
           <Select value={form.status} onValueChange={(v) => onForm({ status: v as BuilderForm["status"] })}>
-            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 w-full min-w-0">
+              <span className="truncate text-left capitalize">{form.status || "draft"}</span>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="active">Active</SelectItem>
@@ -96,7 +97,9 @@ function FormSettings({ form, onForm }: { form: BuilderForm; onForm: (patch: Par
         </Field>
         <Field label="Access">
           <Select value={form.access_type || "public"} onValueChange={(v) => onForm({ access_type: v as BuilderForm["access_type"] })}>
-            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 w-full min-w-0">
+              <span className="truncate text-left capitalize">{form.access_type || "public"}</span>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="public">Public</SelectItem>
               <SelectItem value="private">Private</SelectItem>
@@ -235,7 +238,11 @@ function FieldSettings({ field, onPatch }: { field: FormField; onPatch: (p: Part
             value={field.prefill_from || ""}
             onValueChange={(v) => onPatch({ prefill_from: v || undefined })}
           >
-            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 w-full min-w-0">
+              <span className={`truncate text-left ${field.prefill_from ? "" : "text-muted-foreground"}`}>
+                {PREFILL_OPTIONS.find((o) => o.value === (field.prefill_from || ""))?.label || "None"}
+              </span>
+            </SelectTrigger>
             <SelectContent>
               {PREFILL_OPTIONS.map((o) => (
                 <SelectItem key={o.value || "none"} value={o.value}>{o.label}</SelectItem>

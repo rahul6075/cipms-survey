@@ -25,6 +25,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const update: Record<string, unknown> = {}
   for (const key of ["name", "is_active"]) if (key in body) update[key] = body[key]
+  // findByIdAndUpdate skips the pre-save sync hook, so mirror is_active → status here.
+  if ("is_active" in body && !("status" in body)) update.status = body.is_active ? "active" : "inactive"
   if ("status" in body && (USER_STATUSES as readonly string[]).includes(body.status)) {
     update.status = body.status
     update.is_active = body.status === "active"

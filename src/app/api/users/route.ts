@@ -4,6 +4,43 @@ import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
 import User, { USER_STATUSES } from "@/modules/users/models/User"
 import { computeProfile } from "@/modules/users/profileSchemas"
+import { decodeState } from "@/shared/components/data-table/urlState"
+import { stateToMongo, type ColumnMap } from "@/shared/components/data-table/mongoFilter"
+import type { DataTableState } from "@/shared/components/data-table/types"
+
+/**
+ * Column whitelist for the DataTable filter model. Any column id not listed
+ * here is silently dropped by stateToMongo, so clients can't filter on
+ * arbitrary field paths.
+ *
+ * Note on status: new records are kept in sync with `is_active` via the User
+ * pre-save hook. Legacy records that only have `is_active` won't match a
+ * `status: "active"` filter — document that as a known migration gap and
+ * surface a one-shot backfill in a later pass.
+ */
+const USERS_COLUMN_MAP: ColumnMap = {
+  name:            { field: "name",            kind: "string" },
+  email:           { field: "email",           kind: "string" },
+  role:            { field: "role",            kind: "enum" },
+  status:          { field: "status",          kind: "enum" },
+  profile_percent: { field: "profile_percent", kind: "number", missingAs: 0 },
+  createdAt:       { field: "createdAt",       kind: "date" },
+  is_active:       { field: "is_active",       kind: "boolean" },
+}
+
+// Legacy records may lack `status`, so active/inactive must resolve via `is_active`
+// (same semantics as the legacy ?status= path). invited/suspended stay on `status`.
+function rewriteStatusFilters(state: DataTableState): DataTableState {
+  return {
+    ...state,
+    filters: state.filters.map((f) => {
+      if (f.column !== "status" || (f.op !== "is" && f.op !== "isNot")) return f
+      if (f.value !== "active" && f.value !== "inactive") return f
+      const wantActive = (f.value === "active") === (f.op === "is")
+      return { ...f, column: "is_active", op: wantActive ? "isTrue" : "isFalse", value: undefined }
+    }),
+  }
+}
 
 const DEFAULT_PAGE_SIZE = 25
 const MAX_PAGE_SIZE = 100
@@ -25,6 +62,64 @@ export async function GET(req: NextRequest) {
   await connectDB()
   const { searchParams } = new URL(req.url)
 
+  // Base scope: admins only see agents they created
+  const scope: Record<string, unknown> =
+    session.user.role === "admin"
+      ? { created_by: session.user.id, role: "agent" }
+      : {}
+
+  /* ─── New DataTable path (?dt=…) — takes precedence ──────────
+   * Shares its translator with /api/responses + any future table.
+   */
+  const dt = searchParams.get("dt")
+  if (dt !== null) {
+    try {
+      const state = rewriteStatusFilters(decodeState(dt))
+      const { match, sort: dtSort, skip, limit } = stateToMongo(state, USERS_COLUMN_MAP, {
+        base: scope,
+        searchColumns: ["name", "email"],
+        maxPageSize: MAX_PAGE_SIZE,
+        defaultSort: { createdAt: -1 },
+      })
+      const [rows, total, counts] = await Promise.all([
+        User.find(match)
+          .select("-password")
+          .populate("created_by", "name")
+          .sort(dtSort)
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        User.countDocuments(match),
+        User.aggregate([
+          { $match: scope },
+          {
+            $facet: {
+              total: [{ $count: "n" }],
+              active: [{ $match: { is_active: true } }, { $count: "n" }],
+              agents: [{ $match: { role: "agent" } }, { $count: "n" }],
+              incomplete: [{ $match: { profile_complete: { $ne: true } } }, { $count: "n" }],
+            },
+          },
+        ]),
+      ])
+      const c = counts[0] || {}
+      const pick = (k: string) => (c[k]?.[0]?.n as number | undefined) || 0
+      return NextResponse.json({
+        rows, total,
+        page: state.page, pageSize: state.pageSize,
+        pageCount: Math.max(1, Math.ceil(total / state.pageSize)),
+        counts: {
+          total: pick("total"), active: pick("active"),
+          agents: pick("agents"), incompleteProfiles: pick("incomplete"),
+        },
+      })
+    } catch (e) {
+      console.error("[/api/users dt] failed:", (e as Error).message)
+      return NextResponse.json({ error: "dt_failed", detail: (e as Error).message }, { status: 500 })
+    }
+  }
+
+  /* ─── Legacy path (back-compat) ─────────────────────────────── */
   const q = (searchParams.get("q") || "").trim()
   const role = searchParams.get("role") || undefined
   const status = searchParams.get("status") || undefined
@@ -32,12 +127,6 @@ export async function GET(req: NextRequest) {
   const sortParam = searchParams.get("sort") || "-createdAt"
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(searchParams.get("pageSize")) || DEFAULT_PAGE_SIZE))
-
-  // Base scope: admins only see agents they created
-  const scope: Record<string, unknown> =
-    session.user.role === "admin"
-      ? { created_by: session.user.id, role: "agent" }
-      : {}
 
   const filter: Record<string, unknown> = { ...scope }
   if (role && role !== "all") filter.role = role
