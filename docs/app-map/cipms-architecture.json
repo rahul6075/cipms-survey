@@ -1,0 +1,670 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CIPMS app map (main branch)",
+    "output": "docs/app-map/cipms-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rahul6075/cipms-survey.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "02841c92b5cb91a1d0df415d7c4b3b04a01427c5"
+    }
+  },
+  "components": [
+    {
+      "id": "admin",
+      "type": "external",
+      "label": "Super admin / Admin",
+      "sublabel": "dashboard in browser",
+      "icon": "person",
+      "pos": [
+        20,
+        40
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "NextAuth login",
+      "sublabel": "email + password, agents refused",
+      "pos": [
+        240,
+        40
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/shared/lib/auth.ts",
+          "line": 15,
+          "end_line": 30,
+          "label": "credentials authorize"
+        },
+        {
+          "path": "src/app/(auth)/login/page.tsx",
+          "line": 9,
+          "label": "login page"
+        }
+      ]
+    },
+    {
+      "id": "shell",
+      "type": "frontend",
+      "label": "Dashboard shell",
+      "sublabel": "sidebar, header, role-based nav",
+      "pos": [
+        530,
+        40
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/dashboard/layout.tsx",
+          "line": 3,
+          "end_line": 5,
+          "label": "layout"
+        },
+        {
+          "path": "src/proxy.ts",
+          "line": 6,
+          "end_line": 9,
+          "label": "/dashboard/* guard"
+        }
+      ]
+    },
+    {
+      "id": "usersUi",
+      "type": "frontend",
+      "label": "Users",
+      "sublabel": "DataTable, KPI tiles, user drawer",
+      "pos": [
+        530,
+        150
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/dashboard/users/page.tsx",
+          "line": 8
+        },
+        {
+          "path": "src/modules/users/components/UsersViewNew.tsx",
+          "line": 81,
+          "end_line": 83
+        }
+      ]
+    },
+    {
+      "id": "formsUi",
+      "type": "frontend",
+      "label": "Forms + builder",
+      "sublabel": "list, drag-drop builder, assign",
+      "pos": [
+        530,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/dashboard/forms/page.tsx",
+          "line": 5
+        },
+        {
+          "path": "src/modules/survey/components/FormBuilderView.tsx",
+          "line": 70,
+          "label": "builder"
+        },
+        {
+          "path": "src/modules/survey/components/FormBuilderView.tsx",
+          "line": 208,
+          "label": "save form"
+        }
+      ]
+    },
+    {
+      "id": "intakeUi",
+      "type": "frontend",
+      "label": "Pradhan intake",
+      "sublabel": "profile + photo, creates link",
+      "pos": [
+        530,
+        370
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/dashboard/pradhan-intake/page.tsx",
+          "line": 5
+        },
+        {
+          "path": "src/modules/survey/components/PradhanIntakeView.tsx",
+          "line": 137,
+          "label": "submit intake"
+        }
+      ]
+    },
+    {
+      "id": "reportsUi",
+      "type": "frontend",
+      "label": "Reports workbench",
+      "sublabel": "KPIs, breakdowns, pivot, table",
+      "pos": [
+        530,
+        480
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/dashboard/reports/page.tsx",
+          "line": 16
+        },
+        {
+          "path": "src/modules/survey/reports/ReportsWorkbench.tsx",
+          "line": 162,
+          "label": "aggregate call"
+        },
+        {
+          "path": "src/modules/survey/reports/ReportsWorkbench.tsx",
+          "line": 307,
+          "end_line": 315
+        }
+      ]
+    },
+    {
+      "id": "voter",
+      "type": "external",
+      "label": "Pradhan / voters",
+      "sublabel": "phone browser, no login",
+      "icon": "person",
+      "pos": [
+        20,
+        590
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "surveyUi",
+      "type": "frontend",
+      "label": "Public survey page",
+      "sublabel": "/survey/[token], offline drafts",
+      "pos": [
+        530,
+        590
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/survey/[token]/page.tsx",
+          "line": 5
+        },
+        {
+          "path": "src/modules/survey/components/SurveyForm.tsx",
+          "line": 41,
+          "label": "load form"
+        },
+        {
+          "path": "src/modules/survey/components/SurveyForm.tsx",
+          "line": 114,
+          "label": "submit"
+        }
+      ]
+    },
+    {
+      "id": "usersApi",
+      "type": "backend",
+      "label": "Users API",
+      "sublabel": "/api/users, /api/users/[id]",
+      "pos": [
+        880,
+        150
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/users/route.ts",
+          "line": 76,
+          "end_line": 98,
+          "label": "list via stateToMongo"
+        },
+        {
+          "path": "src/app/api/users/[id]/route.ts",
+          "line": 18,
+          "end_line": 45,
+          "label": "update"
+        }
+      ]
+    },
+    {
+      "id": "formsApi",
+      "type": "backend",
+      "label": "Forms API",
+      "sublabel": "/api/forms, assign, assignments",
+      "pos": [
+        880,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/forms/route.ts",
+          "line": 19,
+          "end_line": 82,
+          "label": "list + stats"
+        },
+        {
+          "path": "src/app/api/forms/route.ts",
+          "line": 209,
+          "label": "create"
+        },
+        {
+          "path": "src/app/api/forms/[id]/assign/route.ts",
+          "line": 7,
+          "end_line": 16,
+          "label": "assign"
+        }
+      ]
+    },
+    {
+      "id": "intakeApi",
+      "type": "backend",
+      "label": "Pradhan intake API",
+      "sublabel": "upsert Pradhan + token link",
+      "pos": [
+        880,
+        370
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/pradhan-intake/route.ts",
+          "line": 28,
+          "label": "POST"
+        },
+        {
+          "path": "src/app/api/pradhan-intake/route.ts",
+          "line": 79,
+          "label": "create Pradhan"
+        },
+        {
+          "path": "src/app/api/pradhan-intake/route.ts",
+          "line": 99,
+          "label": "create assignment"
+        }
+      ]
+    },
+    {
+      "id": "reportsApi",
+      "type": "backend",
+      "label": "Responses + reports API",
+      "sublabel": "responses, aggregate, pivot",
+      "pos": [
+        880,
+        480
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/responses/route.ts",
+          "line": 52,
+          "label": "paged responses"
+        },
+        {
+          "path": "src/app/api/reports/aggregate/route.ts",
+          "line": 26,
+          "label": "aggregate"
+        },
+        {
+          "path": "src/app/api/reports/pivot/route.ts",
+          "line": 29,
+          "end_line": 89,
+          "label": "pivot"
+        }
+      ]
+    },
+    {
+      "id": "surveyApi",
+      "type": "backend",
+      "label": "Survey API (public)",
+      "sublabel": "/api/survey/[token]",
+      "pos": [
+        880,
+        590
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/survey/[token]/route.ts",
+          "line": 38,
+          "label": "GET form + prefill"
+        },
+        {
+          "path": "src/app/api/survey/[token]/route.ts",
+          "line": 148,
+          "label": "save response"
+        },
+        {
+          "path": "src/app/api/survey/[token]/route.ts",
+          "line": 158,
+          "label": "count submission"
+        }
+      ]
+    },
+    {
+      "id": "uploadApi",
+      "type": "backend",
+      "label": "Upload API (public)",
+      "sublabel": "images 10 MB, PDF 20 MB",
+      "pos": [
+        880,
+        760
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/upload/route.ts",
+          "line": 14,
+          "end_line": 28
+        }
+      ]
+    },
+    {
+      "id": "mongo",
+      "type": "database",
+      "label": "MongoDB (Atlas)",
+      "sublabel": "Mongoose, 5 collections",
+      "pos": [
+        1250,
+        72
+      ],
+      "size": [
+        170,
+        660
+      ],
+      "sources": [
+        {
+          "path": "src/shared/lib/mongodb.ts",
+          "line": 13,
+          "end_line": 17,
+          "label": "cached connection"
+        },
+        {
+          "path": "src/modules/survey/models/Response.ts",
+          "line": 34,
+          "label": "Response model"
+        },
+        {
+          "path": "src/modules/survey/models/Form.ts",
+          "line": 53,
+          "label": "Form model"
+        }
+      ]
+    },
+    {
+      "id": "cloudinary",
+      "type": "cloud",
+      "label": "Cloudinary",
+      "sublabel": "photos and PDFs (folder cipms)",
+      "pos": [
+        1250,
+        760
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/upload/route.ts",
+          "line": 28
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Next.js 16 app (single deployment)",
+      "wraps": [
+        "auth",
+        "shell",
+        "usersUi",
+        "formsUi",
+        "intakeUi",
+        "reportsUi",
+        "surveyUi",
+        "usersApi",
+        "formsApi",
+        "intakeApi",
+        "reportsApi",
+        "surveyApi",
+        "uploadApi"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Login required: /dashboard/* (super admin, admin)",
+      "wraps": [
+        "shell",
+        "usersUi",
+        "formsUi",
+        "intakeUi",
+        "reportsUi"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "admin-login",
+      "from": "admin",
+      "to": "auth",
+      "label": "login",
+      "variant": "emphasis"
+    },
+    {
+      "id": "auth-session",
+      "from": "auth",
+      "to": "shell",
+      "label": "JWT session",
+      "variant": "security"
+    },
+    {
+      "id": "users-calls",
+      "from": "usersUi",
+      "to": "usersApi",
+      "label": "/api/users?dt="
+    },
+    {
+      "id": "forms-calls",
+      "from": "formsUi",
+      "to": "formsApi",
+      "label": "/api/forms"
+    },
+    {
+      "id": "intake-calls",
+      "from": "intakeUi",
+      "to": "intakeApi",
+      "label": "/api/pradhan-intake"
+    },
+    {
+      "id": "reports-calls",
+      "from": "reportsUi",
+      "to": "reportsApi",
+      "label": "aggregate, pivot"
+    },
+    {
+      "id": "share-link",
+      "from": "intakeUi",
+      "to": "voter",
+      "label": "survey link, shared by hand",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "top"
+    },
+    {
+      "id": "open-survey",
+      "from": "voter",
+      "to": "surveyUi",
+      "label": "opens /survey/[token]",
+      "variant": "emphasis"
+    },
+    {
+      "id": "survey-calls",
+      "from": "surveyUi",
+      "to": "surveyApi",
+      "label": "load + submit"
+    },
+    {
+      "id": "survey-upload",
+      "from": "surveyUi",
+      "to": "uploadApi",
+      "label": "photo / PDF",
+      "variant": "dashed"
+    },
+    {
+      "id": "users-db",
+      "from": "usersApi",
+      "to": "mongo",
+      "label": "users"
+    },
+    {
+      "id": "forms-db",
+      "from": "formsApi",
+      "to": "mongo",
+      "label": "forms, assignments"
+    },
+    {
+      "id": "intake-db",
+      "from": "intakeApi",
+      "to": "mongo",
+      "label": "users, assignments"
+    },
+    {
+      "id": "reports-db",
+      "from": "reportsApi",
+      "to": "mongo",
+      "label": "reads responses"
+    },
+    {
+      "id": "survey-db",
+      "from": "surveyApi",
+      "to": "mongo",
+      "label": "writes responses"
+    },
+    {
+      "id": "upload-cdn",
+      "from": "uploadApi",
+      "to": "cloudinary",
+      "label": "upload_stream"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Core journey",
+      "items": [
+        "1. Admin builds a form (Forms + builder)",
+        "2. Pradhan intake creates the Pradhan user and a token assignment",
+        "3. Admin shares /survey/[token] by hand (QR, WhatsApp)",
+        "4. Voters fill the survey on their phone; answers saved to responses",
+        "5. Reports workbench analyses responses per form"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Roles and access",
+      "items": [
+        "super_admin: everything; only role that can delete users or change settings",
+        "admin: only forms and Pradhans they created",
+        "agent (Pradhan): cannot log in; uses the public token link only",
+        "Proxy guards /dashboard/*; every API route re-checks the session"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Data (MongoDB collections)",
+      "items": [
+        "users: admins and Pradhans (role, status, profile_data, profile %)",
+        "forms: fields, prefill_from, status, soft delete (deleted_at)",
+        "assignments: Pradhan + form + unique token, total_submissions",
+        "responses: answers map, device, agent, submitted_at",
+        "settings: global default intake form"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Shared building blocks",
+      "items": [
+        "DataTable + stateToMongo: one filter/sort/page format for UI and API",
+        "useFetchJson: aborts stale requests, keeps rows while loading",
+        "reportScope: shared form access + filter match for reports",
+        "Settings: default intake form (super admin)"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Known gaps on main",
+      "items": [
+        "No ownership check: GET /api/forms/[id], POST /api/forms/[id]/assign, GET /api/forms/[id]/assignments, GET /api/users/[id]/assignments",
+        "/api/upload is public by design (type and size capped)",
+        "/dev/data-table demo page ships to production"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Keep this map current",
+      "items": [
+        "Update docs/app-map before every push to main",
+        "Edit cipms-architecture.json, then re-run archify finalize",
+        "Pin meta.repository.revision to the commit being pushed"
+      ]
+    }
+  ]
+}

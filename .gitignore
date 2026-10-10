@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# archify run receipts (contain local absolute paths); keep the .json spec and .html
+docs/app-map/*.finalize.json
+docs/app-map/*.finalize-summary.json
+docs/app-map/*.browser-check.json
+docs/app-map/*.delivery.json
