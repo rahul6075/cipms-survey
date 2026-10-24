@@ -3,6 +3,7 @@ import { Types, type PipelineStage } from "mongoose"
 import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
 import Form from "@/modules/survey/models/Form"
+import Settings from "@/shared/models/Settings"
 
 const DEFAULT_PAGE_SIZE = 25
 const MAX_PAGE_SIZE = 100
@@ -23,10 +24,17 @@ export async function GET(req: NextRequest) {
   await connectDB()
   const { searchParams } = new URL(req.url)
 
+  // ?for=intake: the Pradhan-intake picker needs forms the user can ASSIGN,
+  // which includes the global default form even if a different admin created it.
+  // Base-scoped lists (used for Forms management) stay strict.
+  const forIntake = searchParams.get("for") === "intake"
+
   // When no pagination is requested we return the raw list (legacy behavior)
   // so existing callers (e.g. the intake form picker) keep working.
-  const legacy = !searchParams.has("page") && !searchParams.has("q") &&
-                 !searchParams.has("status") && !searchParams.has("sort")
+  const legacy = forIntake || (
+    !searchParams.has("page") && !searchParams.has("q") &&
+    !searchParams.has("status") && !searchParams.has("sort")
+  )
 
   const q = (searchParams.get("q") || "").trim()
   const status = searchParams.get("status") || undefined
@@ -56,6 +64,25 @@ export async function GET(req: NextRequest) {
 
   // Legacy flat list for callers that still expect an array.
   if (legacy) {
+    if (forIntake) {
+      // Intake picker: assignable = (own forms OR global default) AND not closed AND not deleted.
+      const settings = await Settings.findOne({ key: "global" }).select("default_intake_form_id").lean<{ default_intake_form_id?: Types.ObjectId | null }>()
+      const defaultId = settings?.default_intake_form_id || null
+
+      const intakeFilter: Record<string, unknown> = {
+        deleted_at: null,
+        status: { $ne: "closed" },
+      }
+      if (session.user.role !== "super_admin") {
+        const ownerId = new Types.ObjectId(session.user.id)
+        intakeFilter.$or = defaultId
+          ? [{ created_by: ownerId }, { _id: defaultId }]
+          : [{ created_by: ownerId }]
+      }
+
+      const forms = await Form.find(intakeFilter).sort({ createdAt: -1 }).populate("created_by", "name email").lean()
+      return NextResponse.json(forms)
+    }
     const forms = await Form.find(filter).sort({ createdAt: -1 }).populate("created_by", "name email").lean()
     return NextResponse.json(forms)
   }

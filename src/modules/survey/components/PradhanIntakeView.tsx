@@ -3,12 +3,14 @@
 import * as React from "react"
 import { toast } from "sonner"
 import {
+  AlertTriangle,
   Camera,
   Loader2,
   Plus,
   Trash2,
   Upload,
   UserPlus,
+  X,
 } from "lucide-react"
 
 import { PhotoLightbox } from "@/shared/components/PhotoLightbox"
@@ -71,7 +73,7 @@ export function PradhanIntakeView({ sessionRole }: { sessionRole: Role }) {
   React.useEffect(() => {
     let cancelled = false
     Promise.all([
-      fetch("/api/forms").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/forms?for=intake").then((r) => (r.ok ? r.json() : [])),
       fetch("/api/settings").then((r) => (r.ok ? r.json() : null)),
     ])
       .then(([formsResp, settingsResp]) => {
@@ -281,7 +283,7 @@ export function PradhanIntakeView({ sessionRole }: { sessionRole: Role }) {
                 <Loader2 className="mr-2 h-3 w-3 animate-spin" /> Loading forms…
               </div>
             ) : forms.length === 0 ? (
-              <p className="text-xs text-destructive">No active forms. Create one first.</p>
+              <p className="text-xs text-destructive">No forms available. Create one first.</p>
             ) : (
               <Select value={formId} onValueChange={(v) => setFormId(v || "")}>
                 <SelectTrigger><SelectValue placeholder="Choose a form" /></SelectTrigger>
@@ -294,6 +296,15 @@ export function PradhanIntakeView({ sessionRole }: { sessionRole: Role }) {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {!loadingForms && defaultFormId && !forms.some((f) => f._id === defaultFormId) && (
+              <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                <span>
+                  The saved default form is missing (deleted or closed).
+                  {sessionRole === "super_admin" ? " Clear it below or set a new one." : " Ask a super admin to update the default."}
+                </span>
+              </p>
             )}
             {sessionRole === "super_admin" && (
               <DefaultFormHint
@@ -357,22 +368,64 @@ function DefaultFormHint({
     }
   }
 
+  const stale = !!currentDefault && !forms.some((f) => f._id === currentDefault)
+  // Only pass a value shadcn's <Select> can display — otherwise it would paint
+  // the raw ObjectId as the trigger text.
+  const selectValue = forms.some((f) => f._id === value) ? value : ""
+  const hasChanges = (value || "") !== (currentDefault || "")
+  const canClear = !!currentDefault
+
+  async function clear() {
+    setValue("")
+    setBusy(true)
+    try {
+      const r = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ default_intake_form_id: null }),
+      })
+      if (!r.ok) throw new Error("Clear failed")
+      onChanged(null)
+      toast.success("Default cleared")
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <details className="mt-2 rounded-lg border border-dashed border-border/70 p-3 text-xs">
+    <details className="mt-2 rounded-lg border border-dashed border-border/70 p-3 text-xs" open={stale}>
       <summary className="cursor-pointer text-muted-foreground">Set default intake form for all agents</summary>
-      <div className="mt-3 flex items-center gap-2">
-        <Select value={value} onValueChange={(v) => setValue(v || "")}>
-          <SelectTrigger className="h-8 w-full"><SelectValue placeholder="No default" /></SelectTrigger>
-          <SelectContent>
-            {forms.map((f) => (
-              <SelectItem key={f._id} value={f._id}>{f.title}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button type="button" size="sm" onClick={save} disabled={busy}>
-          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-          Save
-        </Button>
+      <div className="mt-3 space-y-2">
+        {stale && (
+          <p className="flex items-start gap-1.5 text-amber-600 dark:text-amber-500">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>Current default references a form that no longer exists. Clear it or pick a valid one.</span>
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+          <Select value={selectValue} onValueChange={(v) => setValue(v || "")} disabled={forms.length === 0}>
+            <SelectTrigger className="h-8 w-full">
+              <SelectValue placeholder={forms.length === 0 ? "No forms available" : "No default"} />
+            </SelectTrigger>
+            <SelectContent>
+              {forms.map((f) => (
+                <SelectItem key={f._id} value={f._id}>{f.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button type="button" size="sm" onClick={save} disabled={busy || !hasChanges || forms.length === 0}>
+            {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            Save
+          </Button>
+          {canClear && (
+            <Button type="button" variant="outline" size="sm" onClick={clear} disabled={busy} title="Clear default">
+              <X className="h-3 w-3" />
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
     </details>
   )
