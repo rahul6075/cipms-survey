@@ -5,6 +5,7 @@ import { connectDB } from "@/shared/lib/mongodb"
 import Response from "@/modules/survey/models/Response"
 import "@/modules/users/models/User"
 import { buildScopeMatch, loadReportForm, type ScopeInput } from "@/modules/survey/reports/reportScope"
+import { toSearchKey } from "@/shared/lib/searchKey"
 
 type Body = ScopeInput & {
   formId: string
@@ -14,6 +15,7 @@ type Body = ScopeInput & {
 }
 
 export type PivotCell = { r: unknown; c: unknown; n: number; agents: number; sum: number; numeric: number }
+type RawCell = Omit<PivotCell, "agents"> & { agents: unknown[] }
 
 const AGENT_DIMS: Record<string, string> = {
   __panchayat: "$__agent.profile_data.panchayat",
@@ -95,14 +97,62 @@ export async function POST(req: NextRequest) {
       },
     },
     { $limit: MAX_CELLS },
-    { $project: { _id: 0, r: "$_id.r", c: "$_id.c", n: 1, sum: 1, numeric: 1, agents: { $size: "$agents" } } },
+    { $project: { _id: 0, r: "$_id.r", c: "$_id.c", n: 1, sum: 1, numeric: 1, agents: 1 } },
   )
 
   try {
-    const cells = await Response.aggregate<PivotCell>(pipeline).option({ allowDiskUse: true })
-    return NextResponse.json({ cells })
+    const raw = await Response.aggregate<RawCell>(pipeline).option({ allowDiskUse: true })
+    return NextResponse.json({ cells: mergeSpellings(raw) })
   } catch (e) {
     console.error("[/api/reports/pivot] failed:", (e as Error).message)
     return NextResponse.json({ error: "pivot_failed" }, { status: 500 })
   }
+}
+
+/** Group key for a dimension value: text merges across Hindi/English spellings. */
+function groupKey(v: unknown): string {
+  if (typeof v === "string") {
+    const k = toSearchKey(v)
+    if (k) return `k:${k}`
+  }
+  return `v:${JSON.stringify(v ?? null)}`
+}
+
+/**
+ * Merges cells whose row/column values are the same word in different scripts
+ * or spellings ("Tharauli" + "थरौली"). Each group is labelled with its most
+ * common spelling; Pradhan counts are de-duplicated across the merged cells.
+ */
+function mergeSpellings(cells: RawCell[]): PivotCell[] {
+  const labelVotes = new Map<string, Map<string, { value: unknown; n: number }>>()
+  const vote = (key: string, value: unknown, n: number) => {
+    const votes = labelVotes.get(key) ?? new Map<string, { value: unknown; n: number }>()
+    const id = JSON.stringify(value ?? null)
+    const cur = votes.get(id) ?? { value, n: 0 }
+    cur.n += n
+    votes.set(id, cur)
+    labelVotes.set(key, votes)
+  }
+  const merged = new Map<string, { rk: string; ck: string; n: number; sum: number; numeric: number; agents: Set<string> }>()
+  for (const cell of cells) {
+    const rk = groupKey(cell.r)
+    const ck = groupKey(cell.c)
+    vote(rk, cell.r, cell.n)
+    vote(ck, cell.c, cell.n)
+    const id = `${rk}|${ck}`
+    const m = merged.get(id) ?? { rk, ck, n: 0, sum: 0, numeric: 0, agents: new Set<string>() }
+    m.n += cell.n
+    m.sum += cell.sum
+    m.numeric += cell.numeric
+    for (const a of cell.agents) if (a != null) m.agents.add(String(a))
+    merged.set(id, m)
+  }
+  const label = (key: string) => {
+    let best: { value: unknown; n: number } | undefined
+    for (const v of labelVotes.get(key)?.values() ?? []) if (!best || v.n > best.n) best = v
+    return best?.value ?? null
+  }
+  return [...merged.values()].map((m) => ({
+    r: label(m.rk), c: label(m.ck), n: m.n, sum: m.sum, numeric: m.numeric, agents: m.agents.size,
+  }))
 }

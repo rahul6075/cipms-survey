@@ -7,7 +7,8 @@ import Response from "@/modules/survey/models/Response"
 import "@/modules/users/models/User"
 import "@/modules/survey/models/Assignment"
 import { decodeState } from "@/shared/components/data-table/urlState"
-import { stateToMongo, type ColumnMap } from "@/shared/components/data-table/mongoFilter"
+import { stateToMongo, type ColumnMap, type SearchColumn } from "@/shared/components/data-table/mongoFilter"
+import { ensureSearchKeys } from "@/modules/survey/reports/ensureSearchKeys"
 
 /** System column map for responses — form-field columns are added at request time. */
 const RESPONSE_SYSTEM_COLUMNS: ColumnMap = {
@@ -30,20 +31,25 @@ function buildResponsesColumnMap(form: { fields?: Array<{ id?: string; type?: st
     else if (f.type === "yes_no") kind = "boolean"
     else if (f.type === "radio" || f.type === "dropdown") kind = "enum"
     else if (f.type === "checkbox") kind = "arrayEnum"
-    map[f.id] = { field: `answers.${f.id}`, kind }
+    map[f.id] = kind === "string"
+      // Free-text answers may be written in Hindi or English; match both.
+      ? { field: `answers.${f.id}`, kind, keyField: `search_keys.${f.id}` }
+      : { field: `answers.${f.id}`, kind }
   }
   return map
 }
 
-const TEXT_SEARCH_TYPES = new Set(["short_text", "long_text", "email", "phone", "radio", "dropdown", "checkbox"])
+const TEXT_SEARCH_TYPES = new Set([
+  "short_text", "long_text", "email", "phone", "radio", "dropdown", "checkbox", "constituency", "social_media",
+])
 const MAX_SEARCH_FIELDS = 20
 
-/** Answer paths the table's search box looks in: free-text and option fields only. */
-function searchableAnswerPaths(form: { fields?: Array<{ id?: string; type?: string }> }): string[] {
+/** Fields the table's search box looks in, each matched in Hindi and English. */
+function searchableAnswerColumns(form: { fields?: Array<{ id?: string; type?: string }> }): SearchColumn[] {
   return (form.fields || [])
     .filter((f) => f.id && f.type && TEXT_SEARCH_TYPES.has(f.type))
     .slice(0, MAX_SEARCH_FIELDS)
-    .map((f) => `answers.${f.id}`)
+    .map((f) => ({ field: `answers.${f.id}`, keyField: `search_keys.${f.id}` }))
 }
 
 const DEFAULT_PAGE_SIZE = 50
@@ -74,10 +80,11 @@ export async function GET(req: NextRequest) {
   if (dt !== null && dt !== "") {
     try {
       const state = decodeState(dt)
+      await ensureSearchKeys(formId)
       const colMap = buildResponsesColumnMap(form)
       const { match, sort, skip, limit } = stateToMongo(state, colMap, {
         base: { form_id: new Types.ObjectId(formId) },
-        searchColumns: searchableAnswerPaths(form),
+        searchColumns: searchableAnswerColumns(form),
         maxPageSize: MAX_PAGE_SIZE,
         defaultSort: { submitted_at: -1 },
       })

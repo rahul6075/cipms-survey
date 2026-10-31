@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Share2, Copy, Users, Loader2, ChevronDown, Search, Check, MapPin, BarChart2, Link2, UserCircle2, X } from "lucide-react"
 import { Badge } from "@/shared/components/ui/badge"
 import { cn } from "@/shared/lib/utils"
+import { makeSearchMatcher } from "@/shared/lib/searchKey"
 
 interface Agent { _id: string; name: string; email: string }
 interface AssignmentRow {
@@ -28,9 +29,9 @@ function AgentCombobox({ agents, value, onChange }: { agents: Agent[]; value: Ag
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  const filtered = agents.filter((a) =>
-    `${a.name} ${a.email}`.toLowerCase().includes(query.toLowerCase())
-  )
+  // Pradhan names may be saved in Hindi or English; match either way.
+  const match = makeSearchMatcher(query)
+  const filtered = agents.filter((a) => match(a.name) || match(a.email))
 
   return (
     <div ref={ref} className="relative">

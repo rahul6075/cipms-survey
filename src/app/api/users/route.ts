@@ -8,6 +8,8 @@ import { computeProfile } from "@/modules/users/profileSchemas"
 import { decodeState } from "@/shared/components/data-table/urlState"
 import { stateToMongo, type ColumnMap } from "@/shared/components/data-table/mongoFilter"
 import type { DataTableState } from "@/shared/components/data-table/types"
+import { searchKeyPattern } from "@/shared/lib/searchKey"
+import { ensureUserNameKeys } from "@/modules/users/ensureNameKeys"
 
 /**
  * Column whitelist for the DataTable filter model. Any column id not listed
@@ -20,7 +22,8 @@ import type { DataTableState } from "@/shared/components/data-table/types"
  * surface a one-shot backfill in a later pass.
  */
 const USERS_COLUMN_MAP: ColumnMap = {
-  name:            { field: "name",            kind: "string" },
+  // Names may be in Hindi or English; name_key matches across both.
+  name:            { field: "name",            kind: "string", keyField: "name_key" },
   email:           { field: "email",           kind: "string" },
   role:            { field: "role",            kind: "enum" },
   status:          { field: "status",          kind: "enum" },
@@ -95,9 +98,10 @@ export async function GET(req: NextRequest) {
   if (dt !== null) {
     try {
       const state = rewriteStatusFilters(decodeState(dt))
+      await ensureUserNameKeys()
       const { match, sort: dtSort, skip, limit } = stateToMongo(state, USERS_COLUMN_MAP, {
         base: scope,
-        searchColumns: ["name", "email"],
+        searchColumns: [{ field: "name", keyField: "name_key" }, "email"],
         maxPageSize: MAX_PAGE_SIZE,
         defaultSort: { createdAt: -1 },
       })
@@ -147,7 +151,9 @@ export async function GET(req: NextRequest) {
   if (q) {
     const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     const rx = new RegExp(safe, "i")
-    filter.$or = [{ name: rx }, { email: rx }]
+    const keyPattern = searchKeyPattern(q)
+    await ensureUserNameKeys()
+    filter.$or = [{ name: rx }, { email: rx }, ...(keyPattern ? [{ name_key: { $regex: keyPattern } }] : [])]
   }
 
   const sortField = sortParam.replace(/^-/, "")

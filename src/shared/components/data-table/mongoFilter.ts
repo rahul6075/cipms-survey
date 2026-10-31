@@ -3,6 +3,7 @@
  * Imported server-side only. Uses a whitelisted ColumnMap so clients can't
  * filter on arbitrary field paths.
  */
+import { searchKeyPattern, type KeyMatchMode } from "@/shared/lib/searchKey"
 import type { DataTableState, FilterItem, Op } from "./types"
 
 export type ColumnMapEntry = {
@@ -11,7 +12,15 @@ export type ColumnMapEntry = {
   transform?: (v: unknown) => unknown
   /** Value assumed for documents where the field is missing/null (legacy records). */
   missingAs?: unknown
+  /**
+   * Path of a stored search key for this text field (see shared/lib/searchKey).
+   * Text filters then also match across Hindi/English spellings.
+   */
+  keyField?: string
 }
+
+/** A text column the toolbar search looks in; `keyField` adds Hindi/English matching. */
+export type SearchColumn = string | { field: string; keyField?: string }
 export type ColumnMap = Record<string, ColumnMapEntry>
 
 type Clause = Record<string, unknown>
@@ -70,7 +79,25 @@ export function filterItemToClause(item: FilterItem, columnMap: ColumnMap): Clau
   return { $or: [clause, { [field]: { $exists: false } }, { [field]: null }] }
 }
 
+const KEY_MODE: Partial<Record<Op, KeyMatchMode>> = {
+  contains: "contains", equals: "equals", startsWith: "startsWith", endsWith: "endsWith",
+}
+
+/** OR a text clause with a match on the field's search key, when it has one. */
+function withSearchKey(clause: Clause, entry: ColumnMapEntry, op: Op, value: unknown): Clause {
+  const mode = KEY_MODE[op]
+  if (!entry.keyField || !mode || typeof value !== "string") return clause
+  const pattern = searchKeyPattern(value, mode)
+  return pattern ? { $or: [clause, { [entry.keyField]: { $regex: pattern } }] } : clause
+}
+
 function rawClause(item: FilterItem, columnMap: ColumnMap): Clause | null {
+  const clause = textClause(item, columnMap)
+  const entry = columnMap[item.column]
+  return clause && entry ? withSearchKey(clause, entry, item.op, coerce(entry, item.value)) : clause
+}
+
+function textClause(item: FilterItem, columnMap: ColumnMap): Clause | null {
   const entry = columnMap[item.column]
   if (!entry) return null
   const field = entry.field || item.column
@@ -128,7 +155,7 @@ export function stateToMongo(
   columnMap: ColumnMap,
   opts?: {
     base?: Clause
-    searchColumns?: string[]
+    searchColumns?: SearchColumn[]
     maxPageSize?: number
     defaultSort?: Record<string, 1 | -1>
   },
@@ -144,7 +171,14 @@ export function stateToMongo(
   let qClause: Clause | null = null
   if (q && opts?.searchColumns?.length) {
     const safe = esc(q)
-    qClause = { $or: opts.searchColumns.map((c) => ({ [c]: { $regex: safe, $options: "i" } })) }
+    const keyPattern = searchKeyPattern(q)
+    qClause = {
+      $or: opts.searchColumns.flatMap((c) => {
+        const { field, keyField } = typeof c === "string" ? { field: c, keyField: undefined } : c
+        const raw = { [field]: { $regex: safe, $options: "i" } }
+        return keyField && keyPattern ? [raw, { [keyField]: { $regex: keyPattern } }] : [raw]
+      }),
+    }
   }
 
   const combined: Clause[] = []

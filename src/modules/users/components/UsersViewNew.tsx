@@ -297,10 +297,10 @@ export function UsersViewNew({ sessionRole }: { sessionRole: Role }) {
         loading={loading}
         error={error}
         rowKey={(u) => u._id}
+        filterHint="Name matches Hindi and English spellings: “Akhilesh” also finds “अखिलेश”."
         searchPlaceholder="Search name or email…"
         onRowClick={(u) => setOpenUserId(u._id)}
         bulkActions={bulkActions}
-        scope="users"
       />
 
       <UserDrawer

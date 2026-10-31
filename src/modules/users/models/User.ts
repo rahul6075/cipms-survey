@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose"
+import { SEARCH_KEY_VERSION, toSearchKey } from "@/shared/lib/searchKey"
 
 export const USER_STATUSES = ["active", "inactive", "invited", "suspended"] as const
 export type UserStatus = (typeof USER_STATUSES)[number]
@@ -19,7 +20,16 @@ const UserSchema = new Schema({
   profile_complete: { type: Boolean, default: false, index: true },
   profile_percent: { type: Number, default: 0, min: 0, max: 100 },
   last_active_at: { type: Date },
+  /** Hindi/English-insensitive key of `name` (shared/lib/searchKey), for filters and search. */
+  name_key: { type: String },
+  name_key_v: { type: Number },
 }, { timestamps: true })
+
+UserSchema.pre("validate", function () {
+  if (!this.isModified("name") && this.name_key_v === SEARCH_KEY_VERSION) return
+  this.name_key = toSearchKey(this.name || "")
+  this.name_key_v = SEARCH_KEY_VERSION
+})
 
 // Keep status + is_active in sync so existing writes still work ────
 UserSchema.pre("save", function (next) {

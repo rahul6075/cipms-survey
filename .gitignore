@@ -45,3 +45,6 @@ docs/app-map/*.finalize.json
 docs/app-map/*.finalize-summary.json
 docs/app-map/*.browser-check.json
 docs/app-map/*.delivery.json
+
+# unit test build output
+.test-build/

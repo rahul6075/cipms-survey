@@ -42,7 +42,7 @@ import {
 } from "@/shared/components/ui/table"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { DataTableColumnHeader } from "./DataTableColumnHeader"
-import { FiltersPresetsDialog } from "./FiltersPresetsDialog"
+import { FilterDialog } from "./FilterDialog"
 import { defaultOp, opDef } from "./operators"
 import type { DataTableColumn, DataTableState, FilterItem } from "./types"
 
@@ -68,7 +68,7 @@ export function DataTable<Row extends { _id?: string | number }>({
   toolbarRight,
   searchPlaceholder = "Search…",
   emptyState,
-  scope = "default",
+  filterHint,
 }: {
   columns: DataTableColumn<Row>[]
   rows: Row[]
@@ -83,8 +83,8 @@ export function DataTable<Row extends { _id?: string | number }>({
   toolbarRight?: React.ReactNode
   searchPlaceholder?: string
   emptyState?: React.ReactNode
-  /** Scopes saved presets so each table has its own list. */
-  scope?: string
+  /** Shown under the Filters title, e.g. how text matching behaves. */
+  filterHint?: string
 }) {
   const [searchInput, setSearchInput] = React.useState(state.q || "")
   const debouncedSearch = useDebouncedValue(searchInput, 300)
@@ -201,11 +201,10 @@ export function DataTable<Row extends { _id?: string | number }>({
         </div>
       </div>
 
-      {/* Filters & Presets dialog — triggered by the Filter button above */}
-      <FiltersPresetsDialog
+      <FilterDialog
         open={filterOpen}
         onOpenChange={setFilterOpen}
-        scope={scope}
+        hint={filterHint}
         columns={columns}
         filters={state.filters}
         logic={state.logic}

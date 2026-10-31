@@ -3,6 +3,7 @@ import { auth } from "@/shared/lib/auth"
 import { connectDB } from "@/shared/lib/mongodb"
 import User, { USER_STATUSES } from "@/modules/users/models/User"
 import { computeProfile } from "@/modules/users/profileSchemas"
+import { SEARCH_KEY_VERSION, toSearchKey } from "@/shared/lib/searchKey"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -25,6 +26,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const update: Record<string, unknown> = {}
   for (const key of ["name", "is_active"]) if (key in body) update[key] = body[key]
+  // findByIdAndUpdate skips the validate hook, so keep the search key in step here.
+  if (typeof body.name === "string") { update.name_key = toSearchKey(body.name); update.name_key_v = SEARCH_KEY_VERSION }
   // findByIdAndUpdate skips the pre-save sync hook, so mirror is_active → status here.
   if ("is_active" in body && !("status" in body)) update.status = body.is_active ? "active" : "inactive"
   if ("status" in body && (USER_STATUSES as readonly string[]).includes(body.status)) {
