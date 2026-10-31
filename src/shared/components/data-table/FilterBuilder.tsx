@@ -30,14 +30,11 @@ export function FilterBuilder<Row>({
   filters,
   logic,
   onChange,
-  footerSlot,
 }: {
   columns: DataTableColumn<Row>[]
   filters: FilterItem[]
   logic: "and" | "or"
   onChange: (next: { filters: FilterItem[]; logic: "and" | "or" }) => void
-  /** Rendered inside the footer bar, aligned to the left of Remove All. */
-  footerSlot?: React.ReactNode
 }) {
   const filterable = React.useMemo(
     () => columns.filter((c) => c.filterable !== false && c.kind !== "custom"),
@@ -101,7 +98,6 @@ export function FilterBuilder<Row>({
           >
             <Plus className="h-3.5 w-3.5" /> Add Filter
           </Button>
-          {footerSlot}
         </div>
         {filters.length > 0 && (
           <Button

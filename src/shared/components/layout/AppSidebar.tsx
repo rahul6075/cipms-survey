@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
+import Link, { useLinkStatus } from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import {
@@ -11,6 +11,7 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  Loader2,
   LogOut,
   PlusCircle,
   Settings,
@@ -122,9 +123,27 @@ const rolePill: Record<Role, string> = {
   agent: "bg-chart-2/15 text-chart-2",
 }
 
-function isLeafActive(item: NavLeaf, pathname: string) {
+function matchesPath(item: NavLeaf, pathname: string) {
   if (item.match) return item.match(pathname)
   return pathname === item.href || pathname.startsWith(item.href + "/")
+}
+
+/**
+ * The single nav item for the current page: the most specific (longest) link
+ * that matches. Without this, /dashboard/forms/new lit up both "Forms" and
+ * "New Form".
+ */
+function findActiveHref(nodes: NavNode[], pathname: string): string | null {
+  const leaves = nodes.flatMap((n) => ("type" in n && n.type === "group" ? n.children : [n as NavLeaf]))
+  let best: string | null = null
+  for (const leaf of leaves) {
+    if (matchesPath(leaf, pathname) && (best === null || leaf.href.length > best.length)) best = leaf.href
+  }
+  return best
+}
+
+function isLeafActive(item: NavLeaf, activeHref: string | null) {
+  return item.href === activeHref
 }
 
 function filterForRole(nodes: NavNode[], role: Role): NavNode[] {
@@ -140,9 +159,27 @@ function filterForRole(nodes: NavNode[], role: Role): NavNode[] {
     .filter((n) => !("type" in n && n.type === "group" && n.children.length === 0))
 }
 
+/**
+ * Spinner shown on the clicked item until its page arrives, so a click never
+ * looks ignored. Always rendered (opacity only) to avoid layout shift. Must sit
+ * inside the <Link>.
+ */
+function PendingHint() {
+  const { pending } = useLinkStatus()
+  return (
+    <span
+      aria-hidden
+      data-pending={pending ? "true" : "false"}
+      className="ml-auto flex shrink-0 opacity-0 transition-opacity data-[pending=true]:opacity-100 group-data-[collapsible=icon]:hidden"
+    >
+      <Loader2 className="size-3.5 animate-spin" />
+    </span>
+  )
+}
+
 /* ────── Leaf item ───────────────────────────────────────────── */
-function NavLeafItem({ item, pathname }: { item: NavLeaf; pathname: string }) {
-  const active = isLeafActive(item, pathname)
+function NavLeafItem({ item, activeHref }: { item: NavLeaf; activeHref: string | null }) {
+  const active = isLeafActive(item, activeHref)
   const Icon = item.icon
   return (
     <SidebarMenuItem>
@@ -152,17 +189,18 @@ function NavLeafItem({ item, pathname }: { item: NavLeaf; pathname: string }) {
         render={<Link href={item.href} />}
       >
         <Icon />
-        <span>{item.label}</span>
+        <span className="truncate">{item.label}</span>
+        <PendingHint />
       </SidebarMenuButton>
     </SidebarMenuItem>
   )
 }
 
 /* ────── Group item (collapsible when expanded; popover when collapsed) ─ */
-function NavGroupItem({ item, pathname }: { item: NavGroup; pathname: string }) {
+function NavGroupItem({ item, activeHref }: { item: NavGroup; activeHref: string | null }) {
   const { state } = useSidebar()
   const Icon = item.icon
-  const anyChildActive = item.children.some((c) => isLeafActive(c, pathname))
+  const anyChildActive = item.children.some((c) => isLeafActive(c, activeHref))
 
   if (state === "collapsed") {
     return (
@@ -193,7 +231,7 @@ function NavGroupItem({ item, pathname }: { item: NavGroup; pathname: string }) 
             </DropdownMenuGroup>
             {item.children.map((c) => {
               const ChildIcon = c.icon
-              const active = isLeafActive(c, pathname)
+              const active = isLeafActive(c, activeHref)
               return (
                 <DropdownMenuItem
                   key={c.href}
@@ -201,7 +239,8 @@ function NavGroupItem({ item, pathname }: { item: NavGroup; pathname: string }) 
                   className={cn(active && "bg-sidebar-accent text-sidebar-accent-foreground")}
                 >
                   <ChildIcon className="size-4" />
-                  <span>{c.label}</span>
+                  <span className="truncate">{c.label}</span>
+                  <PendingHint />
                 </DropdownMenuItem>
               )
             })}
@@ -212,14 +251,17 @@ function NavGroupItem({ item, pathname }: { item: NavGroup; pathname: string }) 
   }
 
   return (
-    <Collapsible defaultOpen={anyChildActive} className="group/collapsible">
+    // Open by default: Forms and Reports are the most used pages, so they
+    // shouldn't need a second click to reach. Users can still collapse it.
+    <Collapsible defaultOpen className="group/collapsible">
       <SidebarMenuItem>
         <CollapsibleTrigger
           render={
-            <SidebarMenuButton isActive={anyChildActive} tooltip={item.label}>
+            // The open group shows the active child, so the header itself isn't highlighted.
+            <SidebarMenuButton tooltip={item.label}>
               <Icon />
               <span>{item.label}</span>
-              <ChevronRight className="ml-auto size-4 transition-transform group-data-[panel-open]/collapsible:rotate-90" />
+              <ChevronRight className="ml-auto size-4 transition-transform group-data-open/collapsible:rotate-90" />
             </SidebarMenuButton>
           }
         />
@@ -227,12 +269,13 @@ function NavGroupItem({ item, pathname }: { item: NavGroup; pathname: string }) 
           <SidebarMenuSub>
             {item.children.map((c) => {
               const ChildIcon = c.icon
-              const active = isLeafActive(c, pathname)
+              const active = isLeafActive(c, activeHref)
               return (
                 <SidebarMenuSubItem key={c.href}>
                   <SidebarMenuSubButton isActive={active} render={<Link href={c.href} />}>
                     <ChildIcon />
-                    <span>{c.label}</span>
+                    <span className="truncate">{c.label}</span>
+                    <PendingHint />
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
               )
@@ -253,6 +296,8 @@ export function AppSidebar() {
 
   const main = filterForRole(mainNav, role)
   const quick = quickNav.filter((i) => i.roles.includes(role))
+  // Decided once across both menus, so exactly one item is highlighted.
+  const activeHref = findActiveHref([...main, ...quick], pathname)
 
   return (
     <Sidebar collapsible="icon">
@@ -282,9 +327,9 @@ export function AppSidebar() {
             <SidebarMenu>
               {main.map((node) =>
                 "type" in node && node.type === "group" ? (
-                  <NavGroupItem key={node.key} item={node} pathname={pathname} />
+                  <NavGroupItem key={node.key} item={node} activeHref={activeHref} />
                 ) : (
-                  <NavLeafItem key={(node as NavLeaf).href} item={node as NavLeaf} pathname={pathname} />
+                  <NavLeafItem key={(node as NavLeaf).href} item={node as NavLeaf} activeHref={activeHref} />
                 )
               )}
             </SidebarMenu>
@@ -297,7 +342,7 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {quick.map((item) => (
-                  <NavLeafItem key={item.href} item={item} pathname={pathname} />
+                  <NavLeafItem key={item.href} item={item} activeHref={activeHref} />
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>

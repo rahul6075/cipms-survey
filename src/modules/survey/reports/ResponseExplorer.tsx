@@ -184,9 +184,9 @@ export function ResponseExplorer({
         loading={loading}
         error={error}
         rowKey={(r) => r._id}
-        searchPlaceholder="Search answers…"
+        searchPlaceholder="Search answers (Hindi or English)…"
+        filterHint="Text matches Hindi and English spellings: “Tharauli” also finds “थरौली”."
         onRowClick={(r) => setOpenId(r._id)}
-        scope={`responses:${formId}`}
       />
 
       <ResponseDrawer

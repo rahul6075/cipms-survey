@@ -131,12 +131,10 @@ function Scenario({
   title,
   description,
   initial,
-  scope,
 }: {
   title: string
   description: string
   initial?: Partial<DataTableState>
-  scope: string
 }) {
   const [state, setState] = React.useState<DataTableState>({ ...DEFAULT_STATE, ...initial })
   // In-memory fixture: computed synchronously, no simulated latency.
@@ -167,7 +165,6 @@ function Scenario({
         onRowClick={(r) => console.log("row click", r._id)}
         bulkActions={bulk}
         searchPlaceholder="Search name, email, district…"
-        scope={scope}
       />
     </section>
   )
@@ -255,17 +252,6 @@ const SCENARIOS: Array<{ title: string; description: string; initial?: Partial<D
     description: "{name equals 'nobody'} → no rows. Shows the empty-state cell.",
     initial: { filters: [{ id: "f1", column: "name", op: "equals", value: "nobody" }] },
   },
-  {
-    title: "12. Presets · save & load",
-    description: "Click Filter → use Save New to name a preset → load / delete from the left pane. Presets persist in localStorage under this scenario's own scope.",
-    initial: {
-      filters: [
-        { id: "f1", column: "state", op: "isAnyOf", value: ["Uttar Pradesh", "Bihar"] },
-        { id: "f2", column: "role", op: "is", value: "agent" },
-      ],
-      logic: "and",
-    },
-  },
 ]
 
 export default function DevDataTablePage() {
@@ -294,9 +280,8 @@ export default function DevDataTablePage() {
           </Button>
         ))}
       </nav>
-      {/* Remount per scenario so initial state actually resets. Scope keeps
-          saved presets per-scenario so switching scenarios doesn't mix lists. */}
-      <Scenario key={active} {...current} scope={`dev-scenario-${active}`} />
+      {/* Remount per scenario so initial state actually resets. */}
+      <Scenario key={active} {...current} />
     </div>
   )
 }

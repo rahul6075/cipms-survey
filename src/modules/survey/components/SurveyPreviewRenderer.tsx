@@ -4,6 +4,7 @@ import { Star, MapPin, X, Camera, FileText, Loader2, ZoomIn, ChevronDown, Search
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import type { AnswerValue, ConstituencyAnswer, FormField, SocialPlatform } from "@/shared/types"
+import { makeSearchMatcher } from "@/shared/lib/searchKey"
 import { STATES_UTS, LS_CONSTITUENCIES, getLSByState } from "@/shared/data/constituencies"
 import { getVSByState, STATES_WITH_VS_DATA } from "@/shared/data/vs_constituencies"
 import { getBlocksByDistrict, getDistrictForVS, STATES_WITH_BLOCK_DATA } from "@/shared/data/blocks_data"
@@ -309,8 +310,9 @@ function ConstituencyPicker({
   const lsOptions = useMemo(() => {
     const all = val.state ? getLSByState(val.state) : LS_CONSTITUENCIES
     if (!lsSearch.trim()) return all
-    const q = lsSearch.toLowerCase()
-    return all.filter(c => c.name.toLowerCase().includes(q) || String(c.no).includes(q))
+    // Names are stored in English; voters may type them in Hindi.
+    const match = makeSearchMatcher(lsSearch)
+    return all.filter(c => match(c.name) || String(c.no).includes(lsSearch.trim()))
   }, [val.state, lsSearch])
 
   const hasVsData = val.state ? STATES_WITH_VS_DATA.has(val.state) : false
@@ -320,15 +322,15 @@ function ConstituencyPicker({
     if (!hasBlockData || !vsDistrict) return []
     const all = getBlocksByDistrict(val.state!, vsDistrict)
     if (!blockSearch.trim()) return all
-    const q = blockSearch.toLowerCase()
-    return all.filter(b => b.toLowerCase().includes(q))
+    const match = makeSearchMatcher(blockSearch)
+    return all.filter(b => match(b))
   }, [hasBlockData, vsDistrict, val.state, blockSearch])
   const vsOptions = useMemo(() => {
     if (!val.state || !hasVsData) return []
     const all = getVSByState(val.state, val.ls_no)
     if (!vsSearch.trim()) return all
-    const q = vsSearch.toLowerCase()
-    return all.filter(c => c.name.toLowerCase().includes(q) || String(c.no).includes(q))
+    const match = makeSearchMatcher(vsSearch)
+    return all.filter(c => match(c.name) || String(c.no).includes(vsSearch.trim()))
   }, [val.state, val.ls_no, vsSearch, hasVsData])
 
   const set = (patch: object) => !preview && onChange?.({ ...val, ...patch })
