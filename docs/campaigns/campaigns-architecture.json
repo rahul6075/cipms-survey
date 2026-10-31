@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CIPMS Campaign System — proposed architecture",
+    "output": "docs/campaigns/campaigns-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "contactsDB",   "type": "database",   "label": "contacts",          "sublabel": "deduped recipients",   "pos": [430, 90],  "size": [150, 56] },
+    { "id": "campaignsDB",  "type": "database",   "label": "campaigns",         "sublabel": "status + totals",      "pos": [640, 90],  "size": [160, 56] },
+    { "id": "segmentsDB",   "type": "database",   "label": "segments",          "sublabel": "static + dynamic",     "pos": [860, 90],  "size": [160, 56] },
+    { "id": "templatesDB",  "type": "database",   "label": "message_templates", "sublabel": "WABA + DLT approved",  "pos": [1290, 90], "size": [140, 56] },
+
+    { "id": "admin",        "type": "external",   "label": "Admin / Candidate", "sublabel": "dashboard in browser", "pos": [30, 280],  "size": [140, 60] },
+    { "id": "composer",     "type": "frontend",   "label": "Campaign Composer", "sublabel": "audience + schedule",  "pos": [220, 280], "size": [150, 60] },
+    { "id": "api",          "type": "backend",    "label": "Campaigns API",     "sublabel": "/api/campaigns/*",     "pos": [430, 280], "size": [150, 60] },
+    { "id": "campaignSvc",  "type": "backend",    "label": "CampaignService",   "sublabel": "orchestrate",          "pos": [640, 280], "size": [160, 60] },
+    { "id": "dispatchSvc",  "type": "backend",    "label": "DispatchService",   "sublabel": "expand to send_jobs",  "pos": [860, 280], "size": [160, 60] },
+    { "id": "queue",        "type": "messagebus", "label": "BullMQ Queue",      "sublabel": "Upstash Redis",        "pos": [1080, 280],"size": [150, 60] },
+    { "id": "worker",       "type": "backend",    "label": "Dispatch Worker",   "sublabel": "rate-limit + retry",   "pos": [1290, 280],"size": [140, 60] },
+
+    { "id": "waSend",       "type": "external",   "label": "WhatsApp send",     "sublabel": "AiSensyAdapter -> WABA","pos": [1460, 180],"size": [160, 60] },
+    { "id": "smsSend",      "type": "external",   "label": "SMS send",          "sublabel": "MSG91Adapter -> DLT",  "pos": [1460, 350],"size": [160, 60] },
+    { "id": "pradhan",      "type": "external",   "label": "Pradhan / Voter",   "sublabel": "WhatsApp + SMS",       "pos": [1460, 510],"size": [160, 60] },
+
+    { "id": "analytics",    "type": "backend",    "label": "AnalyticsService",  "sublabel": "rollups + cost",       "pos": [220, 450], "size": [150, 60] },
+    { "id": "consentSvc",   "type": "security",   "label": "ConsentService",    "sublabel": "opt-out + 10am-9pm",   "pos": [1080, 450],"size": [150, 60] },
+    { "id": "sendJobsDB",   "type": "database",   "label": "send_jobs + events","sublabel": "per-recipient audit",  "pos": [1290, 450],"size": [140, 56] },
+    { "id": "webhook",      "type": "backend",    "label": "Webhook Ingestion", "sublabel": "/api/webhooks/*",      "pos": [1290, 590],"size": [140, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "CIPMS application (Next.js on Vercel + MongoDB Atlas)", "wraps": ["composer", "api", "campaignSvc", "dispatchSvc", "queue", "worker", "webhook", "analytics", "consentSvc", "contactsDB", "campaignsDB", "segmentsDB", "templatesDB", "sendJobsDB"], "pad": 14 },
+    { "kind": "security-group", "label": "Compliance gates", "wraps": ["consentSvc"] },
+    { "kind": "region", "label": "External providers (Meta WABA + TRAI DLT regulated)", "wraps": ["waSend", "smsSend"], "pad": 10 }
+  ],
+  "connections": [
+    { "from": "admin",       "to": "composer",    "label": "web",     "variant": "emphasis" },
+    { "from": "composer",    "to": "api",         "label": "REST" },
+    { "from": "api",         "to": "campaignSvc", "variant": "emphasis" },
+    { "from": "campaignSvc", "to": "dispatchSvc", "label": "run",     "variant": "emphasis" },
+    { "from": "dispatchSvc", "to": "queue",       "label": "push",    "variant": "emphasis" },
+    { "from": "queue",       "to": "worker",      "variant": "emphasis" },
+
+    { "from": "worker",      "to": "waSend",      "fromSide": "right", "toSide": "left" },
+    { "from": "worker",      "to": "smsSend",     "fromSide": "right", "toSide": "left" },
+    { "from": "smsSend",     "to": "pradhan",     "label": "SMS",     "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "from": "waSend",      "to": "pradhan",     "label": "WA",      "variant": "emphasis", "fromSide": "right",  "toSide": "right", "via": [[1640, 210], [1640, 540]] },
+
+    { "from": "campaignSvc", "to": "campaignsDB", "label": "persist", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "from": "api",         "to": "contactsDB",  "label": "list",    "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "from": "dispatchSvc", "to": "segmentsDB",  "label": "resolve", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "from": "worker",      "to": "templatesDB", "label": "render",  "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+
+    { "from": "worker",      "to": "consentSvc",  "label": "check",   "variant": "security", "fromSide": "bottom", "toSide": "right" },
+    { "from": "worker",      "to": "sendJobsDB",  "label": "write",   "variant": "dashed",   "fromSide": "bottom", "toSide": "top" },
+    { "from": "sendJobsDB",  "to": "analytics",   "label": "read",    "variant": "dashed",   "fromSide": "bottom", "toSide": "bottom", "via": [[1360, 540], [295, 540]] },
+    { "from": "analytics",   "to": "admin",       "label": "KPIs",    "variant": "dashed",   "fromSide": "left",   "toSide": "bottom", "via": [[100, 480], [100, 345]] },
+
+    { "from": "waSend",      "to": "webhook",     "label": "status",  "variant": "dashed", "fromSide": "right", "toSide": "bottom", "via": [[1640, 210], [1640, 680], [1360, 680]] },
+    { "from": "smsSend",     "to": "webhook",     "label": "status",  "variant": "dashed", "fromSide": "left",  "toSide": "right",  "via": [[1450, 380], [1450, 620]] },
+    { "from": "webhook",     "to": "sendJobsDB",  "label": "ack",     "variant": "dashed", "fromSide": "top",   "toSide": "bottom" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Core flow — launching a campaign", "items": [
+      "1. Admin composes campaign in UI: picks audience segment, template, schedule.",
+      "2. API persists the campaign; CampaignService validates and launches.",
+      "3. DispatchService expands the audience to one send_job per contact.",
+      "4. Jobs enter the BullMQ queue (Upstash Redis) with per-channel rate limits.",
+      "5. Worker pops a job, checks ConsentService (opt-out + DLT window), then calls the channel adapter.",
+      "6. Adapter calls the provider API; provider delivers to Pradhan on WhatsApp or SMS."
+    ]},
+    { "dot": "cyan", "title": "Three sending modes (same queue)", "items": [
+      "Ad-hoc — send.schedule.mode = \"immediate\"; jobs enqueued at launch.",
+      "Scheduled — send.schedule.mode = \"scheduled\" + send_at; jobs enqueued when the clock hits.",
+      "Selective — audience.mode = \"ad_hoc\" + contact_ids chosen by admin.",
+      "Drip + recurring come later on the same pipeline — no new infrastructure."
+    ]},
+    { "dot": "rose", "title": "Compliance gates (non-negotiable)", "items": [
+      "ConsentService checks contact.opt_outs[channel] before every send.",
+      "SMS Promotional: window enforced to 10 AM-9 PM IST (TRAI).",
+      "WhatsApp: outside 24-hour session window requires an approved template (Meta).",
+      "Inbound STOP / Meta opt-out webhook flips opt_outs[channel] permanently.",
+      "Every send_job stores the rendered body for audit; message_events keeps raw webhook payloads."
+    ]},
+    { "dot": "amber", "title": "Why these pieces", "items": [
+      "contacts is separate from users so campaigns can target voters without login rows.",
+      "send_jobs is a flat collection (not embedded) so the queue can scan millions of docs.",
+      "Adapters implement a WhatsAppProvider / SmsProvider interface — swap providers without touching services.",
+      "AnalyticsService reads send_jobs with the same aggregation pattern as /api/reports/aggregate.",
+      "Webhook ingestion is the only path that writes delivered / read / replied statuses — no polling."
+    ]},
+    { "dot": "cyan", "title": "Phased build (independently useful)", "items": [
+      "Phase 1 — Scaffold models + static audience + composer UI (no sending yet).",
+      "Phase 2 — WhatsApp live via AiSensy; ad-hoc + scheduled; webhook + basic analytics.",
+      "Phase 3 — SMS via MSG91 (DLT registration); multi-channel fallback.",
+      "Phase 4 — Dynamic segments (saved queries over contacts + survey responses).",
+      "Phase 5 — Replies inbox + cost dashboard + CSV audit export.",
+      "Phase 6 — Drip sequences + recurring campaigns + A/B tests."
+    ]},
+    { "dot": "rose", "title": "Open questions to lock before Phase 1", "items": [
+      "Single candidate vs multi-candidate vs multi-tenant.",
+      "Who gets messaged first — Pradhans only, or Pradhans + voters from survey responses.",
+      "Monthly send budget target — drives provider pricing tier.",
+      "Template approval workflow — admin role or super_admin only.",
+      "Two-way replies in Phase 2 or deferred to Phase 5.",
+      "WhatsApp cost (~Rs 1 / conversation) acceptable, or SMS-first (~Rs 0.20)?"
+    ]}
+  ]
+}

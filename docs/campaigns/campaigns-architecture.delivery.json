@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "3f85fef4-2e4b-4658-9a15-25177d798298",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/rahulchaudhary/Desktop/cipms-survey/docs/campaigns/campaigns-architecture.json",
+  "output": "/Users/rahulchaudhary/Desktop/cipms-survey/docs/campaigns/campaigns-architecture.html",
+  "specification": {
+    "sha256": "83c21e169ce47d317491c4e6fd0690735ca5c9f30187c25300964211fcf47aea",
+    "bytes": 9516
+  },
+  "artifact": {
+    "sha256": "1aaff0b5d56b895f5186943b007eb89da8abb27b2848476dd74947937e86a253",
+    "bytes": 788048
+  }
+}
